@@ -31,7 +31,8 @@ const router = createBrowserRouter([
       { path: '/benefits', element: <BenefitsPage /> },
       { path: '/advertise', element: <AdvertisePage /> },
       { path: '/innovation', element: <InnovationPage /> },
-      { path: '/chat', element: <ChatPage /> },],
+      { path: '/chat', element: <ChatPage /> },
+    ],
   },
 ])
 
