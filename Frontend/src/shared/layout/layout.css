@@ -1,0 +1,90 @@
+/* Topbar + Sidebar + shell styles. Owner: Pavitra. */
+
+/* ---------- Topbar ---------- */
+.topbar { position: sticky; top: 0; z-index: 40; height: var(--topbar-h); display: flex; align-items: center; gap: 12px; padding: 0 16px; background: #fff; border-bottom: 1px solid var(--line); }
+.topbar__left { display: flex; align-items: center; gap: 8px; }
+.topbar__logo { display: none; }
+.topbar__right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+.icon-btn { position: relative; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--ink); }
+.icon-btn:hover { background: rgba(0,0,0,.05); }
+.menu-btn { display: grid; }
+.bell-dot { position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--brand-dot); border: 2px solid #fff; }
+
+.avatar-btn { width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--brand-tint); color: var(--brand); font-weight: 500; font-size: 17px; overflow: hidden; }
+.avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
+
+.search { flex: 1; min-width: 0; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: #faf9f6; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
+.search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ink); }
+.search input::-webkit-search-cancel-button { display: none; }
+.search__region { display: none; padding-left: 16px; border-left: 1px solid var(--line); font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; }
+
+.community { display: none; align-items: center; gap: 8px; font-size: 14px; color: #3d423e; }
+.community__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-dot); }
+
+.logo { display: flex; align-items: center; gap: 16px; }
+.logo__name { display: block; font-size: 28px; font-weight: 600; letter-spacing: .2em; color: var(--brand); line-height: 1; }
+.logo__name sup { font-size: 9px; letter-spacing: 0; }
+.logo__tag { display: block; margin-top: 10px; font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); }
+
+/* dropdown menus (bell + profile) */
+.dropdown-wrap { position: relative; }
+.dropdown { position: absolute; right: 0; top: 100%; margin-top: 12px; width: 280px; max-width: 90vw; padding: 6px; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.1); z-index: 50; }
+.dropdown__title { margin: 0; padding: 8px 12px; font-size: 12px; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); }
+.dropdown__empty { padding: 24px 12px; text-align: center; font-size: 14px; color: var(--muted); }
+.dropdown__item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-radius: 8px; background: transparent; font-size: 14px; text-align: left; }
+.dropdown__item:hover { background: rgba(0,0,0,.05); }
+.dropdown__list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
+.dropdown__list li { padding: 10px 12px; font-size: 14px; border-radius: 8px; }
+.dropdown__list li.unread { background: rgba(227,238,230,.6); }
+
+/* ---------- Sidebar ---------- */
+.sidebar { position: fixed; left: 0; top: var(--topbar-h); z-index: 30; width: 310px; max-width: 85vw; height: calc(100vh - var(--topbar-h)); overflow-y: auto; padding: 58px 29px 40px; background: var(--surface); border-right: 1px solid var(--line); transform: translateX(-100%); transition: transform .2s; }
+.sidebar--open { transform: translateX(0); }
+.overlay { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.3); }
+
+.sidebar__label { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.sidebar__title { margin: 20px 0 0; font-size: 26px; line-height: 34px; font-weight: 400; }
+
+.nav { display: flex; flex-direction: column; gap: 6px; margin-top: 36px; }
+.nav-link { display: flex; align-items: center; gap: 12px; height: 54px; padding: 0 16px; border-radius: 8px; font-size: 15px; color: #4a4f4b; }
+.nav-link:hover { background: rgba(0,0,0,.04); }
+.nav-link.active { background: var(--brand-tint); color: var(--brand); font-weight: 600; }
+.nav-dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--brand); }
+.nav-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 10px; background: var(--brand); color: #fff; font-size: 11px; font-weight: 500; }
+
+.discover { margin-top: 32px; padding-top: 40px; border-top: 1px solid var(--line); }
+.discover .nav { margin-top: 20px; gap: 4px; }
+.discover .nav-link { height: 44px; padding: 0 4px; font-size: 14.5px; }
+.discover .nav-link:hover { background: transparent; color: var(--brand); }
+.discover .nav-link.active { background: transparent; }
+.nav-arrow { margin-left: auto; }
+
+/* ---------- Shell ---------- */
+.main { min-width: 0; padding: 24px 16px 64px; }
+@media (min-width: 768px) { .main { padding-left: 32px; padding-right: 32px; } }
+
+.placeholder { padding: 40px; border: 1px dashed var(--line); border-radius: 16px; background: rgba(255,255,255,.6); }
+.placeholder h1 { margin: 0; font-size: 24px; font-weight: 500; color: var(--brand); }
+.placeholder p { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
+
+/* ---------- Small screens: show logo from 640px ---------- */
+@media (min-width: 640px) {
+  .topbar__logo { display: block; }
+  .search__region { display: block; }
+}
+@media (min-width: 768px) { .community { display: flex; } }
+
+/* ---------- Desktop (1024px+) ---------- */
+@media (min-width: 1024px) {
+  .topbar { display: grid; grid-template-columns: 1fr minmax(0, 612px) 1fr; gap: 24px; padding: 0 44px; }
+  .menu-btn { display: none; }
+  .search { flex: none; height: 48px; }
+  .topbar__right { margin-left: 0; justify-content: flex-end; gap: 36px; }
+  .avatar-btn { width: 52px; height: 52px; font-size: 19px; }
+
+  .shell { display: flex; }
+  .sidebar { position: sticky; flex-shrink: 0; align-self: flex-start; max-width: none; transform: none; z-index: 10; }
+  .overlay { display: none; }
+  .main { flex: 1; padding: 44px 56px 64px; }
+}
