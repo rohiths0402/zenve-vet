@@ -29,23 +29,32 @@ ALLOWED_HOSTS = os.getenv(
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-0l_-287v1m)zd2@t&l!vc08-x&ft(ctz1v2(-m$*5*!s3momle'
+# SECRET_KEY = 'django-insecure-0l_-287v1m)zd2@t&l!vc08-x&ft(ctz1v2(-m$*5*!s3momle'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# # SECURITY WARNING: don't run with debug turned on in production!
+# DEBUG = True
 
-ALLOWED_HOSTS = []
+# ALLOWED_HOSTS = []
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    # Django
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # Project apps
+    'apps.accounts',
+    'apps.profiles',
+    'apps.posts',
+    'apps.connections',
+    'apps.messaging.apps.MessagingConfig',
+    'apps.notifications.apps.NotificationsConfig',
 ]
 
 MIDDLEWARE = [
