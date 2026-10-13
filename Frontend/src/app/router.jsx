@@ -12,7 +12,7 @@ import AdvertisePage from '../features/extras/pages/AdvertisePage'
 import InnovationPage from '../features/extras/pages/InnovationPage'
 import LoginPage from '../features/auth/pages/LoginPage'
 import RegisterPage from '../features/auth/pages/RegisterPage'
-
+import ChatPage from '../features/network/pages/ChatPage'
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -31,7 +31,7 @@ const router = createBrowserRouter([
       { path: '/benefits', element: <BenefitsPage /> },
       { path: '/advertise', element: <AdvertisePage /> },
       { path: '/innovation', element: <InnovationPage /> },
-    ],
+{ path: '/chat', element: <ChatPage /> },    ],
   },
 ])
 
