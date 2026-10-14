@@ -113,5 +113,5 @@ class GroupParticipantsView(APIView):
     def delete(self, request, pk, user_id):
         conversation = services.get_member_conversation(request.user, pk)
         target = services.remove_group_participant(request.user, conversation, user_id)
-        push_to_user(target.user_id, {'type': 'conversation.updated', 'conversationId': conversation.id,'action': 'removed'})
+        push_to_user(target.user_id, {'type': 'conversation.updated', 'conversationId': conversation.id, 'action': 'removed'})
         return Response(status=204)

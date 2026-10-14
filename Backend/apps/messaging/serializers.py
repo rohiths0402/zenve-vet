@@ -90,7 +90,12 @@ def serialize_conversations(request, conversations):
     """Serialize direct and group conversations with bounded query count."""
     me = request.user
     ids = [c.id for c in conversations]
-    participant_rows = (ConversationParticipant.objects.filter(conversation_id__in=ids, left_at__isnull=True).select_related('user__profile').order_by('conversation_id', 'joined_at'))
+    participant_rows = (
+    ConversationParticipant.objects
+    .filter(conversation_id__in=ids, left_at__isnull=True)
+    .select_related('user')
+    .order_by('conversation_id', 'joined_at')
+)
     participants_by_conversation = {}
     for participant in participant_rows:
         participants_by_conversation.setdefault(participant.conversation_id, []).append(participant.user)
