@@ -69,7 +69,7 @@ export default function Sidebar({
 
   const handleFreePageSubmit = (event) => {
     event.preventDefault();
-    // Frontend demonstration only: no data is sent or saved.
+    
     setSubmitted(true);
   };
 
@@ -103,7 +103,7 @@ export default function Sidebar({
 
         .zv-sidebar__eyebrow,
         .zv-sidebar__discover-title {
-          color: #81724d;
+          color: #0f0d07;
           font-size: 10px;
           font-weight: 700;
           letter-spacing: 1.8px;
@@ -219,7 +219,7 @@ export default function Sidebar({
 
         .zv-sidebar__promo-icon {
           margin-bottom: 14px;
-          color: #a18443;
+          color: #e6a212;
         }
 
         .zv-sidebar__promo-heading {
