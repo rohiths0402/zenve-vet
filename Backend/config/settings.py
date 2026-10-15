@@ -26,11 +26,13 @@ INSTALLED_APPS = [
     # Third-party operational api structures
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',  # <-- Add this exact line right here!
     'drf_spectacular',
 
     # Internal Application Modules
     'accounts',
-    'cases'
+    'cases',
+    'profiles',
 ]
 
 # Set up the Custom User Model reference to point to our veterinary profile table

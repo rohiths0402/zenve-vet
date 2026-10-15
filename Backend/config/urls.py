@@ -25,6 +25,7 @@ urlpatterns = [
     # Core Application Endpoint Sub-routers
     path('api/accounts/', include('accounts.urls')),
     path('api/cases/', include('cases.urls')),  # Links your new Case Discussion module view pathways
+    path('api/profiles/', include('profiles.urls')), # <-- Paste this line to map your new Doctor module!
 
     # Beautiful Auto-Generated API Documentation Routing
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
