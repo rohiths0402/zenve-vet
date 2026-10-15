@@ -1,0 +1,241 @@
+.vet-search-page {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  color: #173b30;
+}
+
+.vet-search-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 44px 48px;
+  margin-bottom: 36px;
+  color: #ffffff;
+  background: #103f30;
+  border-radius: 22px;
+}
+
+.vet-search-eyebrow {
+  margin: 0 0 14px;
+  color: #e8cb86;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.vet-search-hero h1 {
+  max-width: 760px;
+  margin: 0 0 14px;
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.vet-search-hero > p:last-child {
+  max-width: 680px;
+  margin: 0;
+  color: #e3eee8;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.vet-search-content {
+  width: 100%;
+}
+
+.vet-search-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.vet-search-heading h2,
+.vet-search-results-heading h2 {
+  margin: 0 0 8px;
+  color: #173b30;
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.vet-search-heading p {
+  margin: 0;
+  color: #697b74;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.vet-search-count,
+.vet-search-results-heading span {
+  flex-shrink: 0;
+  color: #667b72;
+  font-size: 14px;
+}
+
+.vet-search-filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) minmax(180px, 1fr)
+    minmax(160px, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+  padding: 22px;
+  margin-bottom: 34px;
+  background: #ffffff;
+  border: 1px solid #dce5df;
+  border-radius: 16px;
+}
+
+.vet-search-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 8px;
+}
+
+.vet-search-field label {
+  color: #244c3e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vet-search-field input,
+.vet-search-field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  padding: 0 13px;
+  color: #203d32;
+  background: #ffffff;
+  border: 1px solid #d6e0d9;
+  border-radius: 9px;
+  outline: none;
+  font: inherit;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.vet-search-field input::placeholder {
+  color: #91a098;
+}
+
+.vet-search-field input:focus,
+.vet-search-field select:focus {
+  border-color: #287354;
+  box-shadow: 0 0 0 3px rgb(40 115 84 / 12%);
+}
+
+.vet-search-clear,
+.vet-search-empty button {
+  min-height: 46px;
+  padding: 0 18px;
+  color: #ffffff;
+  background: #164b37;
+  border: 1px solid #164b37;
+  border-radius: 9px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.vet-search-clear:hover,
+.vet-search-empty button:hover {
+  background: #0d3828;
+}
+
+.vet-search-clear:focus-visible,
+.vet-search-empty button:focus-visible {
+  outline: 3px solid #9ac6ad;
+  outline-offset: 3px;
+}
+
+.vet-search-results-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.vet-search-results-heading h2 {
+  margin-bottom: 0;
+  font-size: 21px;
+}
+
+.vet-search-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.vet-search-empty {
+  padding: 54px 24px;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #dce5df;
+  border-radius: 16px;
+}
+
+.vet-search-empty h3 {
+  margin: 0 0 10px;
+  color: #173b30;
+  font-size: 21px;
+}
+
+.vet-search-empty p {
+  margin: 0 auto 22px;
+  max-width: 480px;
+  color: #6b7c74;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.vet-search-empty button {
+  padding: 0 20px;
+}
+
+@media (max-width: 1150px) {
+  .vet-search-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vet-search-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .vet-search-hero {
+    padding: 32px 26px;
+    margin-bottom: 28px;
+    border-radius: 16px;
+  }
+
+  .vet-search-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .vet-search-filters {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .vet-search-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vet-search-field input,
+  .vet-search-field select,
+  .vet-search-clear,
+  .vet-search-empty button {
+    transition: none;
+  }
+}
