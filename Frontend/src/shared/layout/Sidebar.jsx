@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Compass,
@@ -20,7 +20,7 @@ const primaryLinks = [
   { label: 'Feed', to: '/', icon: Compass, end: true },
   { label: 'Vet network', to: '/network', icon: Users },
   { label: 'Clinical cases', to: '/clinical-cases', icon: BriefcaseMedical },
-  { label: 'Short videos', to: '/short-videos', icon: Video },
+  { label: 'Short videos', to: '/reels', icon: Video },
   { label: 'Messages', to: '/messages', icon: MessageCircle },
   { label: 'Search', to: '/search', icon: Search },
   { label: 'Member benefits', to: '/benefits', icon: Award },
@@ -40,15 +40,38 @@ const discoverLinks = [
   },
 ];
 
-
 export default function Sidebar({
   open = false,
-  onClose,
+  onClose = () => {},
   badges = {},
 }) {
   const [showFreePagePopup, setShowFreePagePopup] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  const closePopup = () => setShowFreePagePopup(false);
+  const closePopup = () => {
+    setShowFreePagePopup(false);
+    setSubmitted(false);
+  };
+
+  useEffect(() => {
+    if (!open && !showFreePagePopup) return undefined;
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        closePopup();
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [open, showFreePagePopup, onClose]);
+
+  const handleFreePageSubmit = (event) => {
+    event.preventDefault();
+    // Frontend demonstration only: no data is sent or saved.
+    setSubmitted(true);
+  };
 
   return (
     <>
@@ -58,43 +81,47 @@ export default function Sidebar({
           top: 104px;
           left: 0;
           bottom: 0;
-          width: 280px;
-          padding: 35px 20px 18px;
-          box-sizing: border-box;
+          z-index: 150;
           display: flex;
           flex-direction: column;
+          width: 280px;
+          padding: 30px 20px 18px;
+          box-sizing: border-box;
           overflow-y: auto;
           overflow-x: hidden;
-          background: #fff;
           border-right: 1px solid #e1e2da;
+          background: #fff;
           color: #56645b;
           font-family: Arial, sans-serif;
-          z-index: 150;
           scrollbar-width: thin;
-          scrollbar-color: #deded5 transparent;
         }
 
         .zv-sidebar__intro {
           padding: 0 4px;
-          margin-bottom: 28px;
+          margin-bottom: 24px;
         }
 
-        .zv-sidebar__eyebrow {
-          margin: 0 0 18px;
+        .zv-sidebar__eyebrow,
+        .zv-sidebar__discover-title {
           color: #81724d;
           font-size: 10px;
           font-weight: 700;
-          letter-spacing: 2px;
+          letter-spacing: 1.8px;
+          line-height: 1.6;
           text-transform: uppercase;
+        }
+
+        .zv-sidebar__eyebrow {
+          margin: 0 0 14px;
         }
 
         .zv-sidebar__heading {
           margin: 0;
           color: #151c18;
-          font-size: 24px;
+          font-size: 23px;
           font-weight: 500;
-          letter-spacing: -.65px;
-          line-height: 1.45;
+          letter-spacing: -.5px;
+          line-height: 1.4;
         }
 
         .zv-sidebar__nav {
@@ -104,21 +131,19 @@ export default function Sidebar({
         }
 
         .zv-sidebar__link {
-          width: 100%;
-          min-height: 40px;
-          padding: 10px 12px;
           display: flex;
           align-items: center;
           gap: 12px;
+          width: 100%;
+          min-height: 42px;
+          padding: 10px 12px;
           box-sizing: border-box;
-          border-radius: 2px;
-          text-decoration: none;
+          border-radius: 3px;
           color: #56645b;
           font-size: 12px;
           line-height: 1.45;
-          transition:
-            background .16s ease,
-            color .16s ease;
+          text-decoration: none;
+          transition: background .16s ease, color .16s ease;
         }
 
         .zv-sidebar__link > svg {
@@ -155,89 +180,79 @@ export default function Sidebar({
         }
 
         .zv-sidebar__badge {
-          min-width: 18px;
-          height: 18px;
-          padding: 0 4px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          min-width: 18px;
+          height: 18px;
+          padding: 0 5px;
           box-sizing: border-box;
           border-radius: 20px;
           background: #075b3a;
-          color: white;
+          color: #fff;
           font-size: 10px;
         }
 
         .zv-sidebar__discover {
-          margin-top: 28px;
-          padding-top: 27px;
+          margin-top: 24px;
+          padding-top: 22px;
           border-top: 1px solid #dedfd7;
         }
 
         .zv-sidebar__discover-title {
-          margin: 0 4px 18px;
-          color: #716548;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 2px;
-          text-transform: uppercase;
+          margin: 0 4px 14px;
         }
 
         .zv-sidebar__arrow {
-          margin-left: auto;
           flex-shrink: 0;
-          color: #56645b;
+          margin-left: auto;
         }
 
         .zv-sidebar__promo {
           flex-shrink: 0;
-          margin-top: 27px;
-          padding: 24px 20px 19px;
+          margin-top: 24px;
+          padding: 22px 18px 18px;
           border: 1px solid #ead7a7;
           border-radius: 5px;
           background: #f6ebcf;
-          color: #536257;
         }
 
         .zv-sidebar__promo-icon {
-          margin-bottom: 18px;
+          margin-bottom: 14px;
           color: #a18443;
         }
 
         .zv-sidebar__promo-heading {
-          margin: 0 0 14px;
+          margin: 0 0 10px;
           color: #141c17;
-          font-size: 22px;
+          font-size: 21px;
           font-weight: 400;
-          line-height: 1.45;
-          letter-spacing: -.5px;
+          line-height: 1.4;
         }
 
         .zv-sidebar__promo-text {
-          margin: 0 0 18px;
+          margin: 0 0 16px;
           color: #687267;
           font-size: 12px;
-          line-height: 1.75;
+          line-height: 1.7;
         }
 
         .zv-sidebar__promo-button {
-          width: 100%;
-          min-height: 38px;
-          padding: 9px 10px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 8px;
+          width: 100%;
+          min-height: 38px;
+          padding: 9px 10px;
           border: 1px solid #bfa66c;
           border-radius: 2px;
           background: transparent;
           color: #28372d;
-          font-size: 11px;
           font-family: inherit;
+          font-size: 11px;
           text-align: left;
           cursor: pointer;
-          box-sizing: border-box;
-          transition: background .16s ease;
         }
 
         .zv-sidebar__promo-button:hover {
@@ -245,8 +260,8 @@ export default function Sidebar({
         }
 
         .zv-sidebar__footer {
-          margin-top: 24px;
-          padding-top: 16px;
+          margin-top: 22px;
+          padding-top: 14px;
           border-top: 1px solid #ecece6;
           color: #858c83;
           font-size: 10px;
@@ -258,13 +273,9 @@ export default function Sidebar({
           display: none;
         }
 
-        /* Create free page popup */
         .zv-free-page-overlay {
           position: fixed;
-          top: 104px;
-          left: 280px;
-          right: 0;
-          bottom: 0;
+          inset: 104px 0 0 280px;
           z-index: 500;
           display: flex;
           align-items: center;
@@ -294,10 +305,10 @@ export default function Sidebar({
           position: absolute;
           top: 12px;
           right: 12px;
-          width: 32px;
-          height: 32px;
           display: grid;
           place-items: center;
+          width: 32px;
+          height: 32px;
           border: 0;
           border-radius: 3px;
           background: transparent;
@@ -389,13 +400,23 @@ export default function Sidebar({
           background: #06492f;
         }
 
+        .zv-free-page-success {
+          padding: 12px;
+          border: 1px solid #c9dfce;
+          border-radius: 4px;
+          background: #edf7ef;
+          color: #075b3a;
+          font-size: 13px;
+          line-height: 1.6;
+        }
+
         @media (max-width: 760px) {
           .zv-sidebar {
             top: 0;
             bottom: 0;
-            width: 280px;
-            padding-top: 42px;
-            transform: translateX(-100%);
+            width: min(280px, 86vw);
+            padding-top: 48px;
+            transform: translateX(-105%);
             transition: transform .22s ease;
             z-index: 400;
           }
@@ -408,10 +429,10 @@ export default function Sidebar({
             position: absolute;
             top: 10px;
             right: 12px;
-            width: 30px;
-            height: 30px;
             display: grid;
             place-items: center;
+            width: 30px;
+            height: 30px;
             border: 0;
             background: transparent;
             color: #56645b;
@@ -427,13 +448,19 @@ export default function Sidebar({
           }
 
           .zv-free-page-overlay {
-            top: 76px;
-            left: 0;
+            inset: 76px 0 0;
             padding: 16px;
           }
 
           .zv-free-page-popup {
             padding: 25px 20px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .zv-sidebar,
+          .zv-sidebar__link {
+            transition: none;
           }
         }
       `}</style>
@@ -445,6 +472,7 @@ export default function Sidebar({
       />
 
       <aside
+        id="zenve-sidebar"
         className={`zv-sidebar ${open ? 'is-open' : ''}`}
         aria-label="Primary navigation"
       >
@@ -461,7 +489,6 @@ export default function Sidebar({
           <p className="zv-sidebar__eyebrow">
             Your professional world
           </p>
-
           <h2 className="zv-sidebar__heading">
             Great minds.
             <br />
@@ -469,7 +496,7 @@ export default function Sidebar({
           </h2>
         </div>
 
-        <nav className="zv-sidebar__nav">
+        <nav className="zv-sidebar__nav" aria-label="Main menu">
           {primaryLinks.map(({ label, to, icon: Icon, end }) => (
             <NavLink
               key={label}
@@ -485,9 +512,11 @@ export default function Sidebar({
                   <Icon size={20} strokeWidth={1.7} />
                   <span className="zv-sidebar__label">{label}</span>
 
-                  {badges[label] > 0 ? (
+                  {Number(badges[label]) > 0 ? (
                     <span className="zv-sidebar__badge">
-                      {badges[label] > 99 ? '99+' : badges[label]}
+                      {Number(badges[label]) > 99
+                        ? '99+'
+                        : badges[label]}
                     </span>
                   ) : isActive ? (
                     <span className="zv-sidebar__dot" />
@@ -499,11 +528,9 @@ export default function Sidebar({
         </nav>
 
         <section className="zv-sidebar__discover">
-          <p className="zv-sidebar__discover-title">
-            Discover &amp; grow
-          </p>
+          <p className="zv-sidebar__discover-title">Discover more</p>
 
-          <nav className="zv-sidebar__nav">
+          <nav className="zv-sidebar__nav" aria-label="Discover">
             {discoverLinks.map(({ label, to, icon: Icon }) => (
               <NavLink
                 key={label}
@@ -513,11 +540,11 @@ export default function Sidebar({
                 }
                 onClick={onClose}
               >
-                <Icon size={20} strokeWidth={1.7} />
+                <Icon size={19} strokeWidth={1.7} />
                 <span className="zv-sidebar__label">{label}</span>
                 <ArrowUpRight
-                  size={16}
                   className="zv-sidebar__arrow"
+                  size={15}
                 />
               </NavLink>
             ))}
@@ -525,30 +552,17 @@ export default function Sidebar({
         </section>
 
         <section className="zv-sidebar__promo">
-          <Sparkles
-            size={25}
-            strokeWidth={1.6}
-            className="zv-sidebar__promo-icon"
-          />
-
+          <Sparkles className="zv-sidebar__promo-icon" size={22} />
           <h3 className="zv-sidebar__promo-heading">
-            Your next chapter
-            <br />
-            starts here.
+            Build your professional presence.
           </h3>
-
           <p className="zv-sidebar__promo-text">
-            A professional page. A stronger network. A world of
-            possibilities.
+            Create a page to showcase your clinic, expertise, and services.
           </p>
-
           <button
             type="button"
             className="zv-sidebar__promo-button"
-            onClick={() => {
-              setShowFreePagePopup(true);
-              onClose?.();
-            }}
+            onClick={() => setShowFreePagePopup(true)}
           >
             Create your free page
             <ArrowUpRight size={16} />
@@ -556,106 +570,109 @@ export default function Sidebar({
         </section>
 
         <footer className="zv-sidebar__footer">
-          ZENVE VET · The professional network
+          ZENVE VET
+          <br />
+          The professional network
         </footer>
       </aside>
 
       {showFreePagePopup && (
         <div
           className="zv-free-page-overlay"
-          onClick={closePopup}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closePopup();
+          }}
         >
           <section
             className="zv-free-page-popup"
             role="dialog"
             aria-modal="true"
             aria-labelledby="zv-free-page-title"
-            onClick={(event) => event.stopPropagation()}
           >
             <button
               type="button"
               className="zv-free-page-close"
               onClick={closePopup}
-              aria-label="Close popup"
+              aria-label="Close form"
             >
-              <X size={20} />
+              <X size={19} />
             </button>
 
-            <Sparkles
-              size={27}
-              strokeWidth={1.6}
-              className="zv-free-page-icon"
-            />
-
-            <h2
-              id="zv-free-page-title"
-              className="zv-free-page-title"
-            >
-              Create your free page
+            <Sparkles className="zv-free-page-icon" size={25} />
+            <h2 id="zv-free-page-title" className="zv-free-page-title">
+              Create your professional page
             </h2>
-
             <p className="zv-free-page-description">
-              Create your professional veterinary page and introduce
-              yourself to the Zenve Vet community.
+              Introduce your clinic or professional practice to the Zenve Vet
+              community.
             </p>
 
-            <form
-              className="zv-free-page-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                closePopup();
-              }}
-            >
-              <div className="zv-free-page-field">
-                <label htmlFor="zv-free-name">Full name</label>
-                <input
-                  id="zv-free-name"
-                  name="fullName"
-                  type="text"
-                  placeholder="Enter your full name"
-                  required
-                />
+            {submitted ? (
+              <div className="zv-free-page-success" role="status">
+                Demo submitted successfully. No data has been sent or saved.
+                <button
+                  type="button"
+                  className="zv-free-page-submit"
+                  onClick={closePopup}
+                  style={{ marginTop: 12 }}
+                >
+                  Close
+                </button>
               </div>
-
-              <div className="zv-free-page-field">
-                <label htmlFor="zv-free-email">Email address</label>
-                <input
-                  id="zv-free-email"
-                  name="email"
-                  type="email"
-                  placeholder="Enter your email address"
-                  required
-                />
-              </div>
-
-              <div className="zv-free-page-field">
-                <label htmlFor="zv-free-practice">
-                  Professional title / clinic
-                </label>
-                <input
-                  id="zv-free-practice"
-                  name="professionalTitle"
-                  type="text"
-                  placeholder="e.g. Veterinary Doctor"
-                />
-              </div>
-
-              <div className="zv-free-page-field">
-                <label htmlFor="zv-free-about">About you</label>
-                <textarea
-                  id="zv-free-about"
-                  name="about"
-                  placeholder="Write a short introduction"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="zv-free-page-submit"
+            ) : (
+              <form
+                className="zv-free-page-form"
+                onSubmit={handleFreePageSubmit}
               >
-                Continue
-              </button>
-            </form>
+                <div className="zv-free-page-field">
+                  <label htmlFor="zv-page-name">Full name</label>
+                  <input
+                    id="zv-page-name"
+                    name="fullName"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Your full name"
+                    required
+                  />
+                </div>
+
+                <div className="zv-free-page-field">
+                  <label htmlFor="zv-page-email">Email address</label>
+                  <input
+                    id="zv-page-email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+
+                <div className="zv-free-page-field">
+                  <label htmlFor="zv-page-title">Professional title / clinic</label>
+                  <input
+                    id="zv-page-title"
+                    name="professionalTitle"
+                    type="text"
+                    placeholder="Veterinarian, clinic, or organization"
+                    required
+                  />
+                </div>
+
+                <div className="zv-free-page-field">
+                  <label htmlFor="zv-page-about">About your practice</label>
+                  <textarea
+                    id="zv-page-about"
+                    name="about"
+                    placeholder="Briefly describe your work or services"
+                  />
+                </div>
+
+                <button type="submit" className="zv-free-page-submit">
+                  Preview submission
+                </button>
+              </form>
+            )}
           </section>
         </div>
       )}
