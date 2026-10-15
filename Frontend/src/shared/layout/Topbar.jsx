@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Search, Plus, Bell } from 'lucide-react'
+import zenveLogo from '../../assets/zenve-logo.png'
 import './Topbar.css'
 import {
   AUTH_EVENT,
@@ -76,8 +77,7 @@ export default function Topbar() {
   }
 
   function handleLogout() {
-    // Frontend state only. Connect the actual logout service
-    // when your authentication implementation is available.
+    
     localStorage.removeItem('zenveUser')
     setUser(null)
     setActiveMenu(null)
@@ -91,18 +91,22 @@ export default function Topbar() {
     <>
       <header className="zenve-topbar">
         <a href="/" className="zenve-brand" aria-label="Zenve Vet home">
-          <span className="zenve-brand__mark">ZV</span>
+  <img
+    src={zenveLogo}
+    alt="Zenve Vet"
+    className="zenve-brand__logo"
+  />
 
-          <span className="zenve-brand__text">
-            <span className="zenve-brand__name">
-              ZENVE VET<sup>™</sup>
-            </span>
+  <span className="zenve-brand__text">
+    <span className="zenve-brand__name">
+      ZENVE VET<sup>™</sup>
+    </span>
 
-            <span className="zenve-brand__tagline">
-              THE PROFESSIONAL NETWORK
-            </span>
-          </span>
-        </a>
+    <span className="zenve-brand__tagline">
+      THE PROFESSIONAL NETWORK
+    </span>
+  </span>
+</a>
 
         <label className="zenve-search">
           <Search size={17} aria-hidden="true" />
