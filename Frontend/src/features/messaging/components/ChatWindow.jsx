@@ -6,7 +6,7 @@ import ChatMenu from "./ChatMenu";
 import Composer from "./Composer";
 import { formatDay, formatSize, formatTime, sameDay } from "../utils/format";
 
-const getProfilePath = (doctor) => `/vet/${doctor.id}`;
+const getProfilePath = (doctor) => `/doctors/${doctor.id}`;
 
 function Attachment({ item }) {
   if (item.type === "image") {
