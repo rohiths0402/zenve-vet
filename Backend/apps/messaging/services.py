@@ -7,7 +7,8 @@ from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from apps.connections.services import are_connected
 from .models import Conversation, ConversationParticipant, Message, MessageReceipt, OutboxEvent
-
+from apps.connections.models import Connection
+from apps.notifications.models import Notification
 
 def direct_key(a_id, b_id):
     low, high = sorted((a_id, b_id))
@@ -148,6 +149,18 @@ def send_message(conversation, sender, body, client_msg_id):
                 last_message=message, last_message_at=message.created_at)
             recipient_ids = participant_user_ids(conversation, sender.id)
             MessageReceipt.objects.bulk_create([MessageReceipt(message=message, recipient_id=uid) for uid in recipient_ids])
+            Notification.objects.bulk_create([
+                Notification(
+                    recipient_id=uid,
+                    actor=sender,
+                    type=Notification.Type.NEW_MESSAGE,
+                    payload={
+                        "conversationId": conversation.id,
+                        "messageId": message.id,
+                    },
+                )
+                for uid in recipient_ids
+            ])
             OutboxEvent.objects.create(event_type='MESSAGE_CREATED', payload={
                 'messageId': message.id, 'conversationId': conversation.id, 'senderId': sender.id,
             })
@@ -246,19 +259,71 @@ def mark_all_delivered(user):
 
 
 def unread_counts(user, conversation_ids):
-    """Count unread per-recipient receipts in one query, including group conversations."""
-    rows = (MessageReceipt.objects.filter(recipient=user, message__conversation_id__in=list(conversation_ids), read_at__isnull=True)
-            .values('message__conversation_id').annotate(n=Count('id')))
-    result = {row['message__conversation_id']: row['n'] for row in rows}
-    legacy = (Message.objects.filter(conversation_id__in=list(conversation_ids), receipts__isnull=True).exclude(sender=user).values('conversation_id').annotate(n=Count('id')))
+    """Return unread message counts per conversation for this user."""
+    ids = list(conversation_ids)
+    if not ids:
+        return {}
+
+    rows = (
+        MessageReceipt.objects
+        .filter(
+            recipient=user,
+            message__conversation_id__in=ids,
+            read_at__isnull=True,
+        )
+        .values("message__conversation_id")
+        .annotate(n=Count("id"))
+    )
+
+    result = {
+        row["message__conversation_id"]: row["n"]
+        for row in rows
+    }
+
+    # Legacy messages without individual receipts.
+    # Exclude messages already marked as seen.
+    legacy = (
+        Message.objects
+        .filter(
+            conversation_id__in=ids,
+            receipts__isnull=True,
+            status__lt=Message.Status.SEEN,
+        )
+        .exclude(sender=user)
+        .values("conversation_id")
+        .annotate(n=Count("id"))
+    )
+
     for row in legacy:
-        result[row['conversation_id']] = result.get(row['conversation_id'], 0) + row['n']
+        conversation_id = row["conversation_id"]
+        result[conversation_id] = (
+            result.get(conversation_id, 0) + row["n"]
+        )
+
     return result
 
 
 def total_unread(user):
-    unread = MessageReceipt.objects.filter(recipient=user, read_at__isnull=True, message__conversation__participants__user=user, message__conversation__participants__left_at__isnull=True).count()
-    legacy = (Message.objects.filter(conversation__participants__user=user, conversation__participants__left_at__isnull=True, receipts__isnull=True).exclude(sender=user).count())
+    """Return the total unread message count for this user."""
+    unread = MessageReceipt.objects.filter(
+        recipient=user,
+        read_at__isnull=True,
+        message__conversation__participants__user=user,
+        message__conversation__participants__left_at__isnull=True,
+    ).count()
+
+    legacy = (
+        Message.objects
+        .filter(
+            conversation__participants__user=user,
+            conversation__participants__left_at__isnull=True,
+            receipts__isnull=True,
+            status__lt=Message.Status.SEEN,
+        )
+        .exclude(sender=user)
+        .count()
+    )
+
     return unread + legacy
 
 

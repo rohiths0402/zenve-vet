@@ -1,0 +1,621 @@
+/* =========================================
+   Network page layout repair
+   ========================================= */
+
+.vet-search-page,
+.vet-search-page * {
+  box-sizing: border-box;
+}
+
+.vet-search-page {
+  width: 100%;
+  min-width: 0;
+  padding: 0 28px 48px;
+  color: #24352b;
+  font-family: Arial, sans-serif;
+}
+
+/* Discover-style hero */
+
+.vet-search-hero {
+  margin: 0 0 56px;
+  padding: 36px 0 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.vet-search-eyebrow {
+  margin: 0 0 27px;
+  color: #c78336;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  background: transparent;
+}
+
+.vet-search-hero h1 {
+  margin: 0;
+  color: #111b17;
+  font-size: clamp(32px, 4vw, 46px);
+  font-weight: 400;
+  letter-spacing: -1.4px;
+  line-height: 1.2;
+  background: transparent;
+}
+
+.vet-search-subtitle {
+  margin: 14px 0 0;
+  color: #68746b;
+  font-size: 14px;
+  line-height: 1.6;
+  background: transparent;
+}
+
+
+/* Incoming requests */
+
+.connection-requests-panel {
+  width: 100%;
+  margin: 0 0 28px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #e5e9e4;
+  border-radius: 14px;
+  box-shadow: 0 5px 20px rgba(24, 39, 30, 0.04);
+}
+
+.connection-requests-panel__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.connection-requests-panel__eyebrow {
+  margin: 0 0 6px;
+  color: #24764c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.connection-requests-panel__heading h2 {
+  margin: 0;
+  color: #173e2c;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 650;
+}
+
+.connection-requests-panel__heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.connection-requests-panel__count {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 50%;
+  background: #eaf3ec;
+  color: #17633f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.connection-requests-panel__refresh {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e1e8e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #17633f;
+  cursor: pointer;
+}
+
+.connection-requests-panel__empty {
+  margin: 0;
+  padding: 24px 12px;
+  border: 1px dashed #dce5dc;
+  border-radius: 10px;
+  color: #778078;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.connection-requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.connection-request-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #edf0eb;
+  border-radius: 10px;
+}
+
+.connection-request-card__avatar {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #eaf1eb;
+  color: #075a3a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.connection-request-card__details {
+  flex: 1;
+  min-width: 0;
+}
+
+.connection-request-card__details h3 {
+  margin: 0 0 4px;
+  color: #25352b;
+  font-size: 14px;
+}
+
+.connection-request-card__details p {
+  margin: 0 0 4px;
+  color: #68746b;
+  font-size: 12px;
+}
+
+.connection-request-card__details small {
+  color: #899189;
+  font-size: 11px;
+}
+
+.connection-request-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connection-request-card__actions button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.connection-request-card__accept {
+  border: 1px solid #17633f;
+  background: #17633f;
+  color: #fff;
+}
+
+.connection-request-card__reject {
+  border: 1px solid #e1e5df;
+  background: #fff;
+  color: #58645b;
+}
+
+/* Filters */
+
+.vet-search-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.vet-search-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(130px, 1fr));
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.vet-search-field {
+  min-width: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid #e1e5de;
+  border-radius: 8px;
+  background: #fff;
+  color: #68746b;
+}
+
+.vet-search-field:focus-within {
+  border-color: #7eaa8c;
+  box-shadow: 0 0 0 3px rgba(36, 118, 76, 0.08);
+}
+
+.vet-search-field input,
+.vet-search-field select {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #344139;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.vet-search-field select {
+  cursor: pointer;
+}
+
+.vet-search-field input::placeholder {
+  color: #929b93;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Result heading */
+
+.vet-search-results-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 20px;
+  color: #344139;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.vet-search-results-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #818981;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.vet-search-results-meta button,
+.vet-search-empty button {
+  padding: 7px 11px;
+  border: 1px solid #dce5dc;
+  border-radius: 7px;
+  background: #fff;
+  color: #17633f;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* =========================================
+   Doctor cards — reference design
+   ========================================= */
+
+.vet-search-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  align-items: stretch;
+}
+
+.vet-search-card {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #e6e6df;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: none;
+  transition: box-shadow 0.18s ease;
+}
+
+.vet-search-card:hover {
+  transform: none;
+  box-shadow: 0 5px 18px rgba(20, 48, 35, 0.08);
+}
+
+/* Green banner */
+.vet-search-card__banner {
+  position: relative;
+  height: 110px;
+  display: block;
+  overflow: visible;
+  padding: 0;
+  border-radius: 8px 8px 0 0;
+  background: #00563d;
+  color: #fff;
+}
+
+.vet-search-card__banner > span {
+  position: absolute;
+  top: 46px;
+  right: 26px;
+  z-index: 2;
+  max-width: 55%;
+  overflow: hidden;
+  color: #e4c17a;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Decorative stethoscope */
+.vet-search-card__mark {
+  position: absolute;
+  top: 24px;
+  left: 25px;
+  width: 55px;
+  height: 55px;
+  max-width: 55px;
+  max-height: 55px;
+  color: rgba(207, 184, 113, 0.38);
+  transform: none;
+  pointer-events: none;
+}
+
+/* Doctor details */
+.vet-search-card__body {
+  position: relative;
+  min-width: 0;
+  padding: 0 25px 19px;
+}
+
+/* Overlapping avatar */
+.vet-search-card__avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 94px;
+  height: 94px;
+  margin-top: -48px;
+  margin-bottom: 29px;
+  overflow: hidden;
+  border: 5px solid #fff;
+  border-radius: 50%;
+  background: #eaf1eb;
+  color: #075a3a;
+  font-size: 22px;
+  font-weight: 600;
+  z-index: 2;
+}
+
+.vet-search-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* Profile label */
+.vet-search-card__eyebrow {
+  margin: 0 0 16px;
+  color: #bd7740;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1.3px;
+  line-height: 1.4;
+}
+
+/* Name and specialty */
+.vet-search-card__body h2 {
+  margin: 0 0 12px;
+  color: #101a16;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.vet-search-card__specialty {
+  margin: 0 0 12px;
+  color: #00664a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Location */
+.vet-search-card__location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #637068;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.vet-search-card__location svg {
+  flex-shrink: 0;
+  color: #637068;
+}
+
+/* Actions */
+.vet-search-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 25px;
+  padding: 0;
+  border: 0;
+}
+
+.vet-search-card__view {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 12px;
+  border: 1px solid #e1ded3;
+  border-radius: 2px;
+  background: #f8f7f2;
+  color: #111b17;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.vet-search-card__view:hover {
+  background: #efeee7;
+}
+
+.vet-search-card__connect {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #14251c;
+  cursor: pointer;
+}
+
+.vet-search-card__connect:hover:not(:disabled) {
+  background: #edf4ee;
+}
+
+.vet-search-card__connect:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .vet-search-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .vet-search-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 17px;
+  }
+
+  .vet-search-card__body {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+}
+
+/* Empty results */
+
+.vet-search-empty {
+  padding: 48px 20px;
+  border: 1px dashed #dce5dc;
+  border-radius: 12px;
+  background: #fff;
+  color: #778078;
+  text-align: center;
+}
+
+.vet-search-empty h2 {
+  margin: 14px 0 8px;
+  color: #24352b;
+  font-size: 19px;
+}
+
+.vet-search-empty p {
+  margin: 0 0 18px;
+  font-size: 13px;
+}
+
+/* Responsive layout */
+
+@media (max-width: 1100px) {
+  .vet-search-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vet-search-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .vet-search-page {
+    padding: 0 14px 32px;
+  }
+
+  .vet-search-hero {
+    margin: 0 -14px 20px;
+    padding: 26px 14px;
+  }
+
+  .connection-requests-panel {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .connection-requests-panel__heading h2 {
+    font-size: 17px;
+  }
+
+  .connection-request-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 12px;
+  }
+
+  .connection-request-card__details {
+    flex: 1;
+  }
+
+  .connection-request-card__actions {
+    width: 100%;
+    padding-left: 60px;
+  }
+
+  .connection-request-card__actions button {
+    flex: 1;
+  }
+
+  .vet-search-filters {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .vet-search-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .vet-search-results-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .vet-search-results-meta {
+    flex-wrap: wrap;
+  }
+}

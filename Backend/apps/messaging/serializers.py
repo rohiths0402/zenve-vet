@@ -35,17 +35,36 @@ class UserBriefSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     username = serializers.CharField(read_only=True)
     fullName = serializers.SerializerMethodField()
+    avatarUrl = serializers.SerializerMethodField()
+    specialty = serializers.SerializerMethodField()
+    city = serializers.SerializerMethodField()
+    state = serializers.SerializerMethodField()
+
+    def _get_profile(self, obj):
+        try:
+            return obj.doctor_profile
+        except (AttributeError, obj.__class__.DoesNotExist):
+            return None
 
     def get_fullName(self, obj):
-        profile = getattr(obj, 'profile', None)
-        if profile:
-            full_name = getattr(profile, 'full_name', '')
-            if full_name:
-                return full_name
+        return obj.get_full_name().strip() or obj.username
 
-        return obj.get_full_name() or obj.username
+    def get_avatarUrl(self, obj):
+        profile = self._get_profile(obj)
+        return profile.profile_photo_url if profile else ""
 
+    def get_specialty(self, obj):
+        profile = self._get_profile(obj)
+        return profile.specialty or "" if profile else ""
 
+    def get_city(self, obj):
+        profile = self._get_profile(obj)
+        return profile.city or "" if profile else ""
+
+    def get_state(self, obj):
+        profile = self._get_profile(obj)
+        return profile.state or "" if profile else ""
+    
 class MessageCreateSerializer(serializers.Serializer):
     body = serializers.CharField(max_length=4000)
     clientMsgId = serializers.UUIDField(source='client_msg_id', required=False, write_only=True)

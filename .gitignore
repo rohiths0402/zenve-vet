@@ -17,3 +17,7 @@ Frontend/.env.local
 .vscode/
 .DS_Store
 Thumbs.db
+# Exclude ZIP archives
+*.zip
+Backend/config/settings.py.backup
+zenveVet_database/

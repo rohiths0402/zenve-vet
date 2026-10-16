@@ -1,0 +1,209 @@
+
+.create-post-card {
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #e8e9e5;
+  border-radius: 16px;
+}
+
+.create-post-input {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 58px;
+  padding: 12px 18px;
+  background: #fafbf9;
+  border: 1px solid #e0e4dc;
+  border-radius: 12px;
+  color: #71856e;
+  cursor: text;
+}
+
+.create-post-input textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 28px;
+  max-height: 160px;
+  padding: 3px 0;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  color: #29352d;
+  font: inherit;
+}
+
+.create-post-input textarea::placeholder {
+  color: #77817b;
+  opacity: 1;
+}
+
+.create-post-ai {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 12px 0;
+  color: #647b64;
+  font-size: 13px;
+}
+
+.create-post-ai > span:nth-child(2) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.create-post-ai small {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #edf5e9;
+  color: #56704f;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.create-post-ai-spacer {
+  flex: 1;
+}
+
+.create-post-ai button {
+  border: 0;
+  background: transparent;
+  color: #647b64;
+  cursor: pointer;
+}
+
+.create-post-ai button:disabled,
+.create-post-options button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.create-post-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.create-post-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+}
+
+.create-post-options button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #687a6e;
+  font: inherit;
+  cursor: pointer;
+}
+
+.create-post-options button:hover,
+.create-post-ai button:hover {
+  color: #315e4d;
+}
+
+.create-post-card .post-submit {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 10px;
+  background: #76a99b;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.create-post-card .post-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.create-post-preview {
+  position: relative;
+  margin-top: 14px;
+}
+
+.create-post-preview img {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #f5f6f3;
+}
+
+.create-post-preview button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+}
+
+.create-post-message {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+
+.create-post-message.error {
+  color: #b42318;
+}
+
+.create-post-message.success {
+  color: #28734b;
+}
+
+.create-post-spinner {
+  animation: create-post-spin 1s linear infinite;
+}
+
+@keyframes create-post-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .create-post-card {
+    padding: 16px;
+  }
+
+  .create-post-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .create-post-options {
+    gap: 14px;
+  }
+
+  .create-post-options button {
+    font-size: 13px;
+  }
+
+  .create-post-card .post-submit {
+    align-self: flex-end;
+  }
+}
