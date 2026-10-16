@@ -1,20 +1,75 @@
 import {
-  Compass, Users, BriefcaseMedical, Video, MessageCircle,
-  Search, Award, Megaphone, Lightbulb,
+  House,
+  Stethoscope,
+  PlaySquare,
+  Users,
+  CalendarDays,
+  Bookmark,
+  Gift,
+  Megaphone,
+  Settings,
+  CircleHelp,
 } from 'lucide-react'
 
-/** Single source of truth for sidebar links. Add/rename items here, nowhere else. */
-export const NAV_PRIMARY = [
-  { key: 'feed',     label: 'Feed',            to: '/',               icon: Compass, end: true },
-  { key: 'network',  label: 'Vet network',     to: '/network',        icon: Users },
-  { key: 'clinical', label: 'Clinical cases',  to: '/clinical-cases', icon: BriefcaseMedical },
-  { key: 'reels',    label: 'Short videos',    to: '/reels',          icon: Video },
-  { key: 'messages', label: 'Messages',        to: '/messages',       icon: MessageCircle },
-  { key: 'search',   label: 'Search',          to: '/search',         icon: Search },
-  { key: 'benefits', label: 'Member benefits', to: '/benefits',       icon: Award },
-  { key: 'advertise',label: 'Advertise',       to: '/advertise',      icon: Megaphone },
-]
-
-export const NAV_DISCOVER = [
-  { key: 'innovation', label: 'Innovation & scholarships', to: '/innovation', icon: Lightbulb },
+export const navConfig = [
+  {
+    label: 'Home / Feed',
+    path: '/feed',
+    icon: House,
+    group: 'main',
+  },
+  {
+    label: 'Clinical Cases',
+    path: '/clinical-cases',
+    icon: Stethoscope,
+    group: 'main',
+  },
+  {
+    label: 'Short Videos',
+    path: '/short-videos',
+    icon: PlaySquare,
+    group: 'main',
+  },
+  {
+    label: 'Vet Network',
+    path: '/network',
+    icon: Users,
+    group: 'main',
+  },
+  {
+    label: 'Events',
+    path: '/events',
+    icon: CalendarDays,
+    group: 'main',
+  },
+  {
+    label: 'Saved Items',
+    path: '/saved',
+    icon: Bookmark,
+    group: 'more',
+  },
+  {
+    label: 'Member Benefits',
+    path: '/benefits',
+    icon: Gift,
+    group: 'more',
+  },
+  {
+    label: 'Advertise',
+    path: '/advertise',
+    icon: Megaphone,
+    group: 'more',
+  },
+  {
+    label: 'Settings',
+    path: '/settings',
+    icon: Settings,
+    group: 'more',
+  },
+  {
+    label: 'Help & Support',
+    path: '/help',
+    icon: CircleHelp,
+    group: 'more',
+  },
 ]

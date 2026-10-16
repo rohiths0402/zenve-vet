@@ -1,0 +1,147 @@
+
+.network-doctor-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  padding: 22px;
+  background: #ffffff;
+  border: 1px solid #e6e9e4;
+  border-radius: 16px;
+  box-shadow: 0 3px 12px rgb(25 45 32 / 4%);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.network-doctor-card:hover {
+  border-color: #b7c9bb;
+  box-shadow: 0 8px 24px rgb(25 45 32 / 8%);
+  transform: translateY(-2px);
+}
+
+.network-doctor-card__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.network-doctor-card__avatar {
+  display: block;
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #e9efe9;
+}
+
+.network-doctor-card__initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #174b35;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.network-doctor-card__identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.network-doctor-card__name {
+  margin: 2px 0 6px;
+  color: #18231c;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.network-doctor-card__specialty,
+.network-doctor-card__location {
+  margin: 0 0 5px;
+  color: #58665d;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.network-doctor-card__location {
+  color: #78847b;
+}
+
+.network-doctor-card__about {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #536057;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.network-doctor-card__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.network-doctor-card__button {
+  flex: 1;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid #174b35;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.network-doctor-card__button:focus-visible {
+  outline: 3px solid #b5d5bd;
+  outline-offset: 3px;
+}
+
+.network-doctor-card__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.network-doctor-card__button--primary {
+  color: #ffffff;
+  background: #174b35;
+}
+
+.network-doctor-card__button--primary:hover:not(:disabled) {
+  background: #103a29;
+}
+
+.network-doctor-card__button--secondary {
+  color: #174b35;
+  background: #ffffff;
+}
+
+.network-doctor-card__button--secondary:hover {
+  background: #edf4ee;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .network-doctor-card,
+  .network-doctor-card__button {
+    transition: none;
+  }
+
+  .network-doctor-card:hover {
+    transform: none;
+  }
+}

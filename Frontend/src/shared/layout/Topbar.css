@@ -1,0 +1,274 @@
+.zenve-topbar {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 104px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 460px) minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  padding: 0 24px;
+  background: #fff;
+  border-bottom: 1px solid #e7e7e0;
+  z-index: 200;
+  font-family: Arial, sans-serif;
+}
+
+.zenve-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: start;
+  min-width: 0;
+  color: #075a3a;
+  text-decoration: none;
+}
+
+.zenve-brand__logo {
+  display: block;
+  width: 37px;
+  height: 42px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.zenve-brand__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.zenve-brand__name {
+  font-size: 22px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.zenve-brand__name sup {
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+.zenve-brand__tagline {
+  margin-top: 5px;
+  color: #6f756e;
+  font-size: 9px;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.zenve-search {
+  width: 100%;
+  height: 39px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid #e4e5df;
+  border-radius: 5px;
+  background: #f8f8f5;
+  color: #64716a;
+  box-sizing: border-box;
+  justify-self: center;
+}
+
+.zenve-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #242a24;
+  font: inherit;
+  font-size: 12px;
+}
+
+.zenve-search input::placeholder {
+  color: #9aa19a;
+}
+
+.zenve-search__country {
+  padding-left: 12px;
+  border-left: 1px solid #e2e3dc;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.zenve-topbar__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 24px;
+  min-width: 0;
+}
+
+.zenve-community {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  color: #647168;
+  font-size: 11px;
+}
+
+.zenve-community__dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #28875b;
+}
+
+.zenve-profile-btn {
+  min-height: 39px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid #ead9ad;
+  border-radius: 2px;
+  background: #f8efda;
+  color: #242a24;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.zenve-profile-btn:hover {
+  background: #f0e2bd;
+}
+
+.zenve-icon-btn {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #17231d;
+  cursor: pointer;
+}
+
+.zenve-icon-btn:hover {
+  background: #f4f5f1;
+}
+
+.zenve-avatar {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #eaf1eb;
+  color: #075a3a;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.zenve-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.zenve-topbar__menu {
+  position: absolute;
+  top: calc(100% - 8px);
+  right: 20px;
+  z-index: 210;
+}
+
+.zenve-topbar__menu--notifications {
+  right: 75px;
+}
+
+@media (max-width: 1100px) {
+  .zenve-topbar {
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 380px) minmax(0, 1fr);
+    gap: 16px;
+    padding: 0 18px;
+  }
+
+  .zenve-brand__logo {
+    height: 48px;
+    max-width: 200px;
+  }
+
+  .zenve-topbar__actions {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 900px) {
+  .zenve-topbar {
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 300px) minmax(0, 1fr);
+    gap: 12px;
+    padding: 0 16px;
+  }
+
+  .zenve-community {
+    display: none;
+  }
+
+  .zenve-brand__logo {
+    height: 44px;
+    max-width: 175px;
+  }
+}
+
+@media (max-width: 600px) {
+  .zenve-topbar {
+    height: 76px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 0 12px;
+  }
+
+  .zenve-brand__logo {
+    height: 42px;
+    max-width: 170px;
+  }
+
+  .zenve-search {
+    display: none;
+  }
+
+  .zenve-topbar__actions {
+    gap: 6px;
+  }
+
+  .zenve-profile-btn {
+    min-height: 35px;
+    padding: 0 9px;
+    font-size: 11px;
+  }
+
+  .zenve-icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .zenve-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 14px;
+  }
+
+  .zenve-topbar__menu {
+    right: 8px;
+  }
+
+  .zenve-topbar__menu--notifications {
+    right: 48px;
+  }
+}

@@ -1,49 +1,217 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Menu, Search } from 'lucide-react'
-import Logo from './Logo'
-import NotificationsMenu from './NotificationsMenu'
+import { useCallback, useEffect, useState } from 'react'
+import { Search, Plus, Bell } from 'lucide-react'
+import zenveLogo from '../../assets/zenve-logo.png'
+import './Topbar.css'
+import {
+  AUTH_EVENT,
+  getStoredUser,
+  getUserInitial,
+  getProfilePicture,
+} from './topbarUtils.js'
+import RegistrationModal from '../../features/auth/components/RegistrationModal'
+import SignInModal from '../../features/auth/components/SignInModal'
 import ProfileMenu from './ProfileMenu'
+import NotificationsMenu from './NotificationsMenu'
 
-/**
- * Props: user {name, avatarUrl?}, region, unreadNotifications, notifications,
- *        onMenuClick (opens mobile sidebar), onLogout
- */
-export default function Topbar({
-  user, region = 'India', unreadNotifications = 0, notifications = [], onMenuClick, onLogout,
-}) {
-  const [query, setQuery] = useState('')
-  const navigate = useNavigate()
+export default function Topbar() {
+  const [activeAuthModal, setActiveAuthModal] = useState(null)
+  const [user, setUser] = useState(() => getStoredUser())
+  const [activeMenu, setActiveMenu] = useState(null)
 
-  const submit = (e) => {
-    e.preventDefault()
-    const q = query.trim()
-    navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search')
+  const refreshUser = useCallback(() => {
+    setUser(getStoredUser())
+  }, [])
+
+  useEffect(() => {
+    function handleOpenProfile() {
+      if (user) {
+        setActiveMenu('profile')
+      } else {
+        setActiveAuthModal('register')
+      }
+    }
+
+    window.addEventListener('zenve-open-profile', handleOpenProfile)
+    window.addEventListener(AUTH_EVENT, refreshUser)
+    window.addEventListener('storage', refreshUser)
+
+    return () => {
+      window.removeEventListener('zenve-open-profile', handleOpenProfile)
+      window.removeEventListener(AUTH_EVENT, refreshUser)
+      window.removeEventListener('storage', refreshUser)
+    }
+  }, [user, refreshUser])
+
+  useEffect(() => {
+    if (!activeAuthModal) return undefined
+
+    const previousOverflow = document.body.style.overflow
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        setActiveAuthModal(null)
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [activeAuthModal])
+
+  function openRegistration() {
+    setActiveMenu(null)
+    setActiveAuthModal('register')
   }
 
+  function openSignIn() {
+    setActiveMenu(null)
+    setActiveAuthModal('login')
+  }
+
+  function closeModal() {
+    setActiveAuthModal(null)
+  }
+
+  function handleLogout() {
+    
+    localStorage.removeItem('zenveUser')
+    setUser(null)
+    setActiveMenu(null)
+
+    window.dispatchEvent(new Event(AUTH_EVENT))
+  }
+
+  const profilePicture = getProfilePicture(user)
+
   return (
-    <header className="topbar">
-      <div className="topbar__left">
-        <button type="button" className="icon-btn menu-btn" aria-label="Open navigation" onClick={onMenuClick}>
-          <Menu size={22} strokeWidth={1.75} />
-        </button>
-        <div className="topbar__logo"><Logo /></div>
-      </div>
+    <>
+      <header className="zenve-topbar">
+        <a href="/" className="zenve-brand" aria-label="Zenve Vet home">
+  <img
+    src={zenveLogo}
+    alt="Zenve Vet"
+    className="zenve-brand__logo"
+  />
 
-      <form className="search" role="search" onSubmit={submit}>
-        <Search size={20} strokeWidth={1.75} aria-hidden="true" />
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search doctors, specialties, cities…" aria-label="Search doctors, specialties, cities" />
-        <span className="search__region">{region}</span>
-      </form>
+  <span className="zenve-brand__text">
+    <span className="zenve-brand__name">
+      ZENVE VET<sup>™</sup>
+    </span>
 
-      <div className="topbar__right">
-        <Link to="/network" className="community">
-          <span className="community__dot" /> Open community
-        </Link>
-        <NotificationsMenu unreadCount={unreadNotifications} notifications={notifications} />
-        <ProfileMenu user={user} onLogout={onLogout} />
-      </div>
-    </header>
+    <span className="zenve-brand__tagline">
+      THE PROFESSIONAL NETWORK
+    </span>
+  </span>
+</a>
+
+        <label className="zenve-search">
+          <Search size={17} aria-hidden="true" />
+
+          <input
+            type="search"
+            placeholder="Search doctors, specialties, cities..."
+            aria-label="Search doctors, specialties, cities"
+          />
+
+          <span className="zenve-search__country">INDIA</span>
+        </label>
+
+        <div className="zenve-topbar__actions">
+          <span className="zenve-community">
+            <span className="zenve-community__dot" />
+            Open community
+          </span>
+
+          {!user ? (
+            <button
+              type="button"
+              className="zenve-profile-btn"
+              onClick={openRegistration}
+            >
+              <Plus size={16} />
+              Create your profile
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="zenve-icon-btn"
+                aria-label="Notifications"
+                aria-expanded={activeMenu === 'notifications'}
+                onClick={() =>
+                  setActiveMenu((current) =>
+                    current === 'notifications'
+                      ? null
+                      : 'notifications'
+                  )
+                }
+              >
+                <Bell size={21} />
+              </button>
+
+              <button
+                type="button"
+                className="zenve-avatar"
+                aria-label="Open profile menu"
+                aria-expanded={activeMenu === 'profile'}
+                onClick={() =>
+                  setActiveMenu((current) =>
+                    current === 'profile' ? null : 'profile'
+                  )
+                }
+              >
+                {profilePicture ? (
+                  <img
+                    src={profilePicture}
+                    alt=""
+                    onError={(event) => {
+                      event.currentTarget.style.display = 'none'
+                    }}
+                  />
+                ) : (
+                  getUserInitial(user)
+                )}
+              </button>
+            </>
+          )}
+        </div>
+
+        {activeMenu === 'profile' && user && (
+          <div className="zenve-topbar__menu">
+            <ProfileMenu
+              user={user}
+              onClose={() => setActiveMenu(null)}
+              onLogout={handleLogout}
+            />
+          </div>
+        )}
+
+        {activeMenu === 'notifications' && user && (
+          <div className="zenve-topbar__menu zenve-topbar__menu--notifications">
+            <NotificationsMenu
+              onClose={() => setActiveMenu(null)}
+            />
+          </div>
+        )}
+      </header>
+
+      {activeAuthModal === 'register' && (
+        <RegistrationModal
+          onClose={closeModal}
+          onSignIn={openSignIn}
+        />
+      )}
+
+      {activeAuthModal === 'login' && (
+        <SignInModal
+          onClose={closeModal}
+          onRegister={openRegistration}
+        />
+      )}
+    </>
   )
 }
