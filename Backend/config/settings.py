@@ -77,6 +77,8 @@ INSTALLED_APPS = [
 
     "common",
     "posts",
+    "advertise",
+    "member_benefits",
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
