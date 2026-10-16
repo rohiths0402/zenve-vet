@@ -1,254 +1,771 @@
-import { useState } from "react";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowUpRight,
+  Award,
+  Bookmark,
+  Check,
+  ChevronRight,
+  Globe,
+  Heart,
+  MapPin,
+  MessageCircle,
+  Plus,
+  RefreshCw,
+  Share2,
+  Sparkles,
+  Stethoscope,
+  Upload,
+  Users,
+  Video,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+
+import {
+  fetchShortVideos,
+  createShortVideo,
+  likeFeedPost,
+  unlikeFeedPost,
+} from "../services/reelsService.js";
+
 import "./ReelsPage.css";
 
-function HeroBanner({ onMakeMark }) {
+const SPECIALTIES = [
+  "Animal Nutrition",
+  "Cardiology",
+  "Diagnostic Imaging",
+  "Emergency & Critical Care",
+  "Equine Medicine",
+  "Livestock Health",
+  "Preventive Medicine",
+  "Small Animal Medicine",
+  "Surgery",
+  "Veterinary Dentistry",
+  "Veterinary Dermatology",
+  "Veterinary Surgery",
+  "Wildlife Medicine",
+];
+
+const STATES = [
+  "Andhra Pradesh",
+  "Karnataka",
+  "Kerala",
+  "Maharashtra",
+  "New Delhi",
+  "Tamil Nadu",
+  "Telangana",
+  "Uttar Pradesh",
+  "West Bengal",
+];
+
+function getId(post) {
+  return post?.id ?? post?.pk;
+}
+
+function getType(post) {
+  return String(post?.content_type || post?.post_type || post?.type || "")
+    .toLowerCase()
+    .replace(/-/g, "_");
+}
+
+function getVideoUrl(post) {
+  return post?.media_url || post?.video_url || post?.media?.url || "";
+}
+
+function getThumbnail(post) {
+  return post?.thumbnail_url || post?.thumbnail || post?.cover_image || "";
+}
+
+function getAuthor(post) {
   return (
-    <div className="zenve-hero">
-      <div className="hero-left">
-        <p className="eyebrow">THE ZENVE VET COMMUNITY</p>
-        <h1>Every case. A new perspective.</h1>
-        <p className="sub">Explore the knowledge and experiences of your community.</p>
-        <a className="cta" onClick={onMakeMark} style={{cursor:'pointer'}}>Make your mark <span>↗</span></a>
-      </div>
-      <div className="hero-right">
-        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-          <path d="M18 10C18 6 22 2 28 6C32 9 32 16 32 22V36C32 46 38 52 48 52C54 52 58 48 58 42C58 38 56 35 52 35C48 35 46 38 46 42" stroke="#C8B86A" strokeWidth="1.6" strokeLinecap="round"/>
-          <circle cx="46" cy="42" r="2" fill="#C8B86A"/>
-          <path d="M10 16C10 8 16 4 20 8" stroke="#C8B86A" strokeWidth="1.6" strokeLinecap="round"/>
-          <circle cx="20" cy="28" r="3" stroke="#C8B86A" strokeWidth="1.6"/>
-        </svg>
-        <span>BETTER<br/>TOGETHER</span>
-      </div>
-    </div>
+    post?.author_full_name ||
+    post?.author?.full_name ||
+    post?.author?.username ||
+    post?.author_name ||
+    "Veterinarian"
   );
 }
 
-function ModalWrapper({ open, onClose, children }) {
-  if (!open) return null;
+function getAvatar(post) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>✕</button>
-        {children}
-      </div>
-    </div>
+    post?.author_avatar ||
+    post?.author?.avatar ||
+    post?.author?.profile_picture ||
+    "/default-avatar.png"
   );
 }
 
-export default function FeedPage({ posts = [], peopleToKnow = [], stories = [] }) {
+function getCount(value) {
+  if (Array.isArray(value)) return value.length;
+  return Number(value) || 0;
+}
+
+function getError(error) {
+  return error?.message || "Something went wrong. Please try again.";
+}
+
+function HeroBanner() {
+  return (
+    <section className="reels-hero">
+      <div className="reels-hero-content">
+        <p className="reels-eyebrow">THE ZENVE VET COMMUNITY</p>
+        <h1>Small moments. Big discoveries.</h1>
+        <p>
+          Explore veterinary knowledge and experiences through video.
+        </p>
+        <a href="#video-feed">
+          Make your mark <ArrowUpRight size={16} />
+        </a>
+      </div>
+
+      <div className="reels-hero-brand">
+        <Stethoscope size={58} strokeWidth={1.3} />
+        <span>BETTER<br />TOGETHER</span>
+      </div>
+    </section>
+  );
+}
+
+function VideoMoments({ videos, onUpload, onSelect }) {
+  const creators = useMemo(() => {
+    const seen = new Set();
+
+    return videos.filter((video) => {
+      const id = video.author?.id ?? video.author_id ?? getAuthor(video);
+
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    }).slice(0, 8);
+  }, [videos]);
+
+  return (
+    <section className="reels-moments">
+      <div className="reels-section-heading">
+        <h2>Video moments from the community</h2>
+        <span>VIDEOS <ArrowUpRight size={13} /></span>
+      </div>
+
+      <div className="reels-moments-list">
+        <button
+          className="reels-moment"
+          type="button"
+          onClick={onUpload}
+        >
+          <span className="reels-moment-ring reels-add-ring">
+            <Plus size={22} />
+          </span>
+          <span>Your video</span>
+        </button>
+
+        {creators.map((video, index) => (
+          <button
+            className="reels-moment"
+            type="button"
+            key={getId(video) ?? index}
+            onClick={() => onSelect(video)}
+            title={`Watch video by ${getAuthor(video)}`}
+          >
+            <span className="reels-moment-ring">
+              <img src={getAvatar(video)} alt="" />
+              <Video className="reels-moment-video-icon" size={15} />
+            </span>
+            <span>{getAuthor(video).split(" ")[0]}</span>
+          </button>
+        ))}
+
+        {videos.length === 0 && (
+          <p className="reels-muted">Published videos will appear here.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function VideoCard({ post, liked, pending, saved, onLike, onShare, onComment, onSave }) {
+  const [muted, setMuted] = useState(true);
+  const [playing, setPlaying] = useState(false);
+  const videoRef = useRef(null);
+
+  const videoUrl = getVideoUrl(post);
+  const thumbnail = getThumbnail(post);
+  const id = getId(post);
+
+  return (
+    <article className="reels-video-card" id={`video-${id}`}>
+      <div className="reels-video-player">
+        {videoUrl ? (
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            poster={thumbnail || undefined}
+            controls
+            playsInline
+            preload="metadata"
+            muted={muted}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+          />
+        ) : (
+          <div className="reels-video-unavailable">
+            {thumbnail && <img src={thumbnail} alt="" />}
+            <Video size={32} />
+            <p>Video URL is not available.</p>
+          </div>
+        )}
+
+        {videoUrl && (
+          <button
+            type="button"
+            className="reels-mute-button"
+            onClick={() => {
+              setMuted((value) => !value);
+              if (videoRef.current) {
+                videoRef.current.muted = !muted;
+              }
+            }}
+            aria-label={muted ? "Unmute video" : "Mute video"}
+          >
+            {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
+          </button>
+        )}
+
+        <div className="reels-video-overlay">
+          <div className="reels-video-author">
+            <img src={getAvatar(post)} alt="" />
+            <div>
+              <strong>{getAuthor(post)}</strong>
+              <small>
+                {post.author?.specialty || post.author_specialty || post.specialty || "Veterinary professional"}
+              </small>
+            </div>
+          </div>
+
+          {post.caption && (
+            <p className="reels-video-caption">{post.caption}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="reels-video-actions">
+        <button
+          type="button"
+          className={liked ? "reels-action is-liked" : "reels-action"}
+          onClick={() => onLike(post)}
+          disabled={pending}
+          aria-pressed={liked}
+        >
+          <Heart size={20} fill={liked ? "currentColor" : "none"} />
+          <span>{getCount(post.likes_count ?? post.likes)}</span>
+        </button>
+
+        <button
+          type="button"
+          className="reels-action"
+          onClick={() => onComment(post)}
+        >
+          <MessageCircle size={20} />
+          <span>{getCount(post.comments_count ?? post.comments)}</span>
+        </button>
+
+        <button
+          type="button"
+          className="reels-action"
+          onClick={() => onShare(post)}
+        >
+          <Share2 size={20} />
+          <span>Share</span>
+        </button>
+
+        <button
+          type="button"
+          className={saved ? "reels-action is-saved" : "reels-action"}
+          onClick={() => onSave(post)}
+          aria-pressed={saved}
+        >
+          {saved ? <Check size={20} /> : <Bookmark size={20} />}
+          <span>{saved ? "Saved" : "Save"}</span>
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function PeopleToKnow() {
+  const people = [
+    {
+      name: "Dr. Arjun Mehta",
+      specialty: "Veterinary Surgery",
+      city: "Mumbai",
+      avatar: "/assets/men-0-CJkWiJuy.jpg",
+    },
+    {
+      name: "Dr. Priya Nair",
+      specialty: "Veterinary Dermatology",
+      city: "Kochi",
+      avatar: "/assets/women-1-xoP18Jy1.jpg",
+    },
+    {
+      name: "Dr. Vikram Singh",
+      specialty: "Equine Medicine",
+      city: "Jaipur",
+      avatar: "/assets/men-1-BWZc6gqQ.jpg",
+    },
+  ];
+
+  return (
+    <section className="reels-sidebar-card">
+      <h3>PEOPLE TO KNOW</h3>
+      {people.map((person) => (
+        <div className="reels-person" key={person.name}>
+          <img src={person.avatar} alt="" />
+          <div>
+            <strong>{person.name}</strong>
+            <span>{person.specialty}</span>
+            <small><MapPin size={12} /> {person.city}</small>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function ZenveAdvantage() {
+  return (
+    <section className="reels-sidebar-card reels-advantage">
+      <h3>THE ZENVE ADVANTAGE</h3>
+
+      <div className="reels-advantage-item">
+        <Globe size={20} />
+        <div>
+          <strong>Your own professional page</strong>
+          <p>A place for your work, your voice, your professional identity.</p>
+        </div>
+      </div>
+
+      <div className="reels-advantage-item">
+        <Users size={20} />
+        <div>
+          <strong>Meaningful connections</strong>
+          <p>Discover peers beyond your clinic and your city.</p>
+        </div>
+      </div>
+
+      <div className="reels-advantage-item">
+        <Award size={20} />
+        <div>
+          <strong>Grow with possibility</strong>
+          <p>Mentorship, research and innovation pathways.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function ReelsPage() {
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [tab, setTab] = useState("For you");
-  const [activeModal, setActiveModal] = useState(null);
-  const [allPosts, setAllPosts] = useState(posts);
-  const [postText, setPostText] = useState("");
-  const [fileName, setFileName] = useState("No file chosen");
-  const [profile, setProfile] = useState({ name: "", city: "Bengaluru, Karnataka", specialty: "Small Animal Medicine", about: "" });
+  const [specialty, setSpecialty] = useState("all");
+  const [stateFilter, setStateFilter] = useState("all");
+  const [likedIds, setLikedIds] = useState(() => new Set());
+  const [pendingIds, setPendingIds] = useState(() => new Set());
+  const [savedIds, setSavedIds] = useState(() => new Set());
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadCaption, setUploadCaption] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
 
-  const [openFilter, setOpenFilter] = useState(null);
-  const [selectedSpecialty, setSelectedSpecialty] = useState("All specialties");
-  const [selectedState, setSelectedState] = useState("All states");
-  const [selectedPostType, setSelectedPostType] = useState("All posts");
+  const loadVideos = useCallback(async (signal) => {
+    setLoading(true);
+    setError("");
 
-  const specialtiesList = ["All specialties","Animal Nutrition","Cardiology","Diagnostic Imaging","Emergency & Critical Care","Equine Medicine","Livestock Health","Preventive Medicine","Small Animal Medicine","Surgeon","Surgery","TEST","Veterinary Dentistry","Veterinary Dermatology","Veterinary Diagnostics & Imaging","Veterinary Pathology","Veterinary Research","Veterinary Surgery","Wildlife Medicine"];
-  const statesList = ["All states","Andhra Pradesh","Ariyalur","Assam","Bangalore","Bihar","Chandigarh","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jammu & Kashmir","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya"];
-  const postsList = ["All posts","Posts & photos","Clinical cases","Stories","Short videos"];
+    try {
+      const result = await fetchShortVideos({ signal });
 
-  const tabs = ["For you", "Popular", "Following"];
+      if (!signal?.aborted) {
+        setVideos((Array.isArray(result) ? result : []).filter(
+          (post) => getType(post) === "video" || getType(post) === "short_video"
+        ));
+      }
+    } catch (err) {
+      if (!signal?.aborted) setError(getError(err));
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, []);
 
-  const addPost = (text) => {
-    setAllPosts([{ id: Date.now(), name: "You", role: "Just now", avatar: "https://i.pravatar.cc/100?img=10", text, views: 1, likes: 0 },...allPosts]);
-    setActiveModal(null);
-    setPostText("");
-    setFileName("No file chosen");
-  };
+  useEffect(() => {
+    const controller = new AbortController();
+    loadVideos(controller.signal);
+    return () => controller.abort();
+  }, [loadVideos]);
+
+  const visibleVideos = useMemo(() => {
+    let result = [...videos];
+
+    if (specialty !== "all") {
+      result = result.filter((video) =>
+        (video.author?.specialty || video.author_specialty || video.specialty) === specialty
+      );
+    }
+
+    if (stateFilter !== "all") {
+      result = result.filter((video) =>
+        (video.author?.state || video.author_state || video.state) === stateFilter
+      );
+    }
+
+    if (tab === "Popular") {
+      result.sort(
+        (a, b) =>
+          getCount(b.likes_count ?? b.likes) -
+          getCount(a.likes_count ?? a.likes)
+      );
+    } else if (tab === "Following") {
+      result = result.filter((video) =>
+        video.is_following === true || video.author?.is_following === true
+      );
+    }
+
+    return result;
+  }, [videos, specialty, stateFilter, tab]);
+
+  async function handleLike(post) {
+    const id = getId(post);
+    if (id == null || pendingIds.has(id)) return;
+
+    if (!localStorage.getItem("zenveAccessToken")) {
+      setError("Please sign in to like a video.");
+      return;
+    }
+
+    const wasLiked = likedIds.has(id);
+
+    setPendingIds((current) => new Set(current).add(id));
+    setLikedIds((current) => {
+      const next = new Set(current);
+      wasLiked ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+    try {
+      if (wasLiked) await unlikeFeedPost(id);
+      else await likeFeedPost(id);
+    } catch (err) {
+      setLikedIds((current) => {
+        const next = new Set(current);
+        wasLiked ? next.add(id) : next.delete(id);
+        return next;
+      });
+      setError(getError(err));
+    } finally {
+      setPendingIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
+  async function handleShare(post) {
+    const id = getId(post);
+    const url = `${window.location.origin}/reels${id ? `?video=${id}` : ""}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Zenve Vet Short Video",
+          text: post.caption || "Watch this veterinary video.",
+          url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setNotice("Video link copied.");
+      }
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        setError("Unable to share this video.");
+      }
+    }
+  }
+
+  function handleSave(post) {
+    const id = getId(post);
+    if (id == null) return;
+
+    setSavedIds((current) => {
+      const next = new Set(current);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function handleComment(post) {
+    const id = getId(post);
+    if (id != null) {
+      window.location.href = `/posts/${id}#comments`;
+    }
+  }
+
+  function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      setError("Please select a valid video file.");
+      return;
+    }
+
+    if (file.size > 100 * 1024 * 1024) {
+      setError("Videos must be smaller than 100 MB.");
+      return;
+    }
+
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+
+    setUploadFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setUploadOpen(true);
+    setError("");
+    setNotice("");
+  }
+
+  async function handlePublishVideo(event) {
+    event.preventDefault();
+
+    if (!uploadFile) return;
+
+    setError("");
+
+    try {
+      setUploading(true);
+
+      // This requires a backend upload endpoint that accepts the file.
+      // createShortVideo currently accepts a URL, not a local File.
+      // Do not pretend a local file was uploaded if the API cannot upload it.
+      const videoUrl = uploadFile.url || "";
+
+      if (!videoUrl) {
+        throw new Error(
+          "Your backend needs a video-upload endpoint before local videos can be published. The selected video is preview-only."
+        );
+      }
+
+      await createShortVideo({
+        caption: uploadCaption,
+        media_url: videoUrl,
+      });
+
+      setUploadOpen(false);
+      setUploadFile(null);
+      setUploadCaption("");
+      setNotice("Video published.");
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl("");
+      await loadVideos();
+    } catch (err) {
+      setError(getError(err));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function closeUpload() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl("");
+    setUploadFile(null);
+    setUploadCaption("");
+    setUploadOpen(false);
+  }
 
   return (
-    <div className="layout-center-right">
-      <main className="center-feed">
-        <HeroBanner onMakeMark={() => setActiveModal('profile')} />
-        <div className="white-card">
-          <div className="head"><b>Moments from the community</b><span>STORIES ↗</span></div>
-          <div className="stories">
-            <div className="story" onClick={() => setActiveModal('profile')} style={{cursor:'pointer'}}>
-              <div className="ring add">+</div><span>Your story</span>
+    <div className="reels-layout">
+      <main className="reels-main">
+        <HeroBanner />
+
+        <VideoMoments
+          videos={videos}
+          onUpload={() => document.getElementById("reels-video-input")?.click()}
+          onSelect={(post) => {
+            const id = getId(post);
+            document.getElementById(`video-${id}`)?.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
+          }}
+        />
+
+        <input
+          id="reels-video-input"
+          type="file"
+          accept="video/*"
+          hidden
+          onChange={handleFileChange}
+        />
+
+        <section className="reels-upload-card">
+          <div className="reels-upload-avatar">V</div>
+          <div className="reels-upload-content">
+            <strong>Share a moment from your practice</strong>
+            <p>Upload a short veterinary video for the community.</p>
+          </div>
+          <button
+            type="button"
+            className="reels-upload-button"
+            onClick={() => document.getElementById("reels-video-input")?.click()}
+          >
+            <Upload size={16} /> Short video
+          </button>
+        </section>
+
+        {uploadOpen && (
+          <section className="reels-upload-card reels-upload-form">
+            <div className="reels-section-heading">
+              <h2>Preview your video</h2>
+              <button type="button" onClick={closeUpload}>Cancel</button>
             </div>
-            {stories.map(s => (<div key={s.id} className="story"><img src={s.avatar} alt="" /><span>{s.name}</span></div>))}
-            {stories.length === 0 && <span className="empty-text">No stories yet</span>}
-          </div>
-        </div>
-<div className="white-card">
-  <input 
-    className="create-input" 
-    placeholder="🩺 Share a discovery, a case, a little inspiration..." 
-    value={postText}
-    onChange={(e) => setPostText(e.target.value)}
-    onKeyDown={(e) => {
-      if(e.key === 'Enter' && postText.trim()){
-        addPost(postText);
-      }
-    }}
-  />
-  <div className="create-row">
-    <div>
-              <span className="create-btn" onClick={() => setActiveModal('post')}>🖼️ Photo / Post</span>
-              <span className="create-btn" onClick={() => setActiveModal('clinical')}>📋 Clinical case</span>
-              <span className="create-btn" onClick={() => setActiveModal('story')}>⊕ Story</span>
-              <span className="create-btn" onClick={() => setActiveModal('video')}>🎬 Short video</span>
-              <span className="create-btn" onClick={() => setActiveModal('ai')}>✨ AI case assistant</span>
-            </div>
-            <button onClick={() => setActiveModal('post')}>Post ↗</button>
-          </div>
-        </div>
-        <div className="tabs">{tabs.map(t => (<button key={t} className={tab === t? "on" : ""} onClick={() => setTab(t)}>{t}</button>))}<span className="community">• COMMUNITY FEED</span></div>
-        
-        <div className="filter">
-          <div className="custom-select-wrap">
-            <button className="custom-select-btn" onClick={() => setOpenFilter(openFilter==='specialty'?null:'specialty')}>
-              {selectedSpecialty} <span style={{fontSize:'10px'}}>▼</span>
-            </button>
-            {openFilter === 'specialty' && (
-              <div className="custom-popup">
-                {specialtiesList.map(item => (
-                  <div key={item} onClick={() => { setSelectedSpecialty(item); setOpenFilter(null); }}>{item}</div>
-                ))}
-              </div>
-            )}
-          </div>
 
-          <div className="custom-select-wrap">
-            <button className="custom-select-btn" onClick={() => setOpenFilter(openFilter==='state'?null:'state')}>
-              {selectedState} <span style={{fontSize:'10px'}}>▼</span>
-            </button>
-            {openFilter === 'state' && (
-              <div className="custom-popup">
-                {statesList.map(item => (
-                  <div key={item} onClick={() => { setSelectedState(item); setOpenFilter(null); }}>{item}</div>
-                ))}
-              </div>
+            {previewUrl && (
+              <video src={previewUrl} controls playsInline />
             )}
-          </div>
 
-          <div className="custom-select-wrap">
-            <button className="custom-select-btn" onClick={() => setOpenFilter(openFilter==='post'?null:'post')}>
-              {selectedPostType} <span style={{fontSize:'10px'}}>▼</span>
+            <form onSubmit={handlePublishVideo}>
+              <label htmlFor="reels-caption">Caption</label>
+              <textarea
+                id="reels-caption"
+                value={uploadCaption}
+                onChange={(event) => setUploadCaption(event.target.value)}
+                placeholder="Share what others can learn from this video..."
+                rows={3}
+                maxLength={2000}
+              />
+
+              <button
+                className="reels-upload-button"
+                type="submit"
+                disabled={uploading}
+              >
+                {uploading ? "Publishing..." : "Publish video"}
+              </button>
+            </form>
+          </section>
+        )}
+
+        <div className="reels-tabs">
+          {["For you", "Popular", "Following"].map((item) => (
+            <button
+              key={item}
+              type="button"
+              className={tab === item ? "active" : ""}
+              onClick={() => setTab(item)}
+            >
+              {item}
             </button>
-            {openFilter === 'post' && (
-              <div className="custom-popup small">
-                {postsList.map(item => (
-                  <div key={item} onClick={() => { setSelectedPostType(item); setOpenFilter(null); }}>{item}</div>
-                ))}
-              </div>
-            )}
-          </div>
-          <span>{allPosts.length} RESULTS</span>
+          ))}
+
+          <span>{visibleVideos.length} VIDEOS</span>
         </div>
 
-        <div className="feed-list">{allPosts.map(p => (<div key={p.id} className="white-card post-card"><div className="post-head"><img src={p.avatar} alt="" /><div><b>{p.name}</b><small>{p.role}</small></div></div><p className="post-text">{p.text}</p><div className="consent">◎ Consent reviewed · De-identified for peer discussion</div></div>))}</div>
+        <section className="reels-filters">
+          <select
+            value={specialty}
+            onChange={(event) => setSpecialty(event.target.value)}
+            aria-label="Filter by specialty"
+          >
+            <option value="all">All specialties</option>
+            {SPECIALTIES.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+
+          <select
+            value={stateFilter}
+            onChange={(event) => setStateFilter(event.target.value)}
+            aria-label="Filter by state"
+          >
+            <option value="all">All states</option>
+            {STATES.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+
+          <button type="button" onClick={() => {
+            setSpecialty("all");
+            setStateFilter("all");
+            setTab("For you");
+          }}>
+            Reset filters
+          </button>
+
+          <button
+            type="button"
+            className="reels-refresh"
+            onClick={() => loadVideos()}
+            disabled={loading}
+          >
+            <RefreshCw size={15} /> Refresh
+          </button>
+        </section>
+
+        {error && (
+          <div className="reels-message error" role="alert">
+            {error}
+            <button type="button" onClick={() => setError("")}>Dismiss</button>
+          </div>
+        )}
+
+        {notice && (
+          <div className="reels-message success" role="status">
+            {notice}
+            <button type="button" onClick={() => setNotice("")}>Dismiss</button>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="reels-empty">
+            <RefreshCw className="reels-loading-icon" size={24} />
+            <p>Loading videos...</p>
+          </div>
+        ) : visibleVideos.length === 0 ? (
+          <div className="reels-empty">
+            <Video size={34} />
+            <h2>No short videos yet</h2>
+            <p>Published video posts matching your filters will appear here.</p>
+          </div>
+        ) : (
+          <section className="reels-video-feed" id="video-feed">
+            {visibleVideos.map((post, index) => {
+              const id = getId(post);
+
+              return (
+                <VideoCard
+                  key={id ?? index}
+                  post={post}
+                  liked={id != null && likedIds.has(id)}
+                  pending={id != null && pendingIds.has(id)}
+                  saved={id != null && savedIds.has(id)}
+                  onLike={handleLike}
+                  onShare={handleShare}
+                  onComment={handleComment}
+                  onSave={handleSave}
+                />
+              );
+            })}
+          </section>
+        )}
       </main>
 
-      <aside className="right-bar">
-        <div className="right-card">
-          <div className="head"><b>PEOPLE TO KNOW</b><span>View all ↗</span></div>
-          {peopleToKnow.length === 0? <p className="empty-text">No suggestions yet</p> : peopleToKnow.map(d => (
-            <div key={d.id} className="person"><img src={d.avatar} alt="" /><div><b>{d.name}</b><small>{d.spec}</small><small>📍 {d.city}</small></div><button>+</button></div>
-          ))}
-        </div>
-
-        <div className="right-card">
-          <div className="head"><b>THE ZENVE ADVANTAGE</b><span>✧</span></div>
-          <div className="adv">
-            <div className="adv-icon">🌐</div>
-            <div className="adv-text">
-              <b>Your own professional page</b>
-              <small>A place for your work, your voice, your professional identity.</small>
-            </div>
-            <span className="adv-arrow">›</span>
-          </div>
-          <div className="adv">
-            <div className="adv-icon">👥</div>
-            <div className="adv-text">
-              <b>Meaningful connections</b>
-              <small>Discover peers beyond your clinic and city.</small>
-            </div>
-            <span className="adv-arrow">›</span>
-          </div>
-          <div className="adv">
-            <div className="adv-icon">🏅</div>
-            <div className="adv-text">
-              <b>Grow with possibility</b>
-              <small>Mentorship, research and innovation pathways.</small>
-            </div>
-            <span className="adv-arrow">›</span>
-          </div>
-        </div>
-
-        <div className="breakthrough"><h3>The next breakthrough could be yours.</h3><p>A community built on care.</p><small onClick={() => setActiveModal('profile')} style={{cursor:'pointer'}}>Create your page ↗</small></div>
+      <aside className="reels-sidebar">
+        <PeopleToKnow />
+        <ZenveAdvantage />
       </aside>
-
-      <ModalWrapper open={activeModal === 'profile'} onClose={() => setActiveModal(null)}>
-        <h2>Make your professional mark.</h2>
-        <p className="modal-sub">Your own public veterinary page. Free, with no login required.</p>
-        <label>Full name</label><input placeholder="Dr. Your name" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value })} />
-        <label>City & state</label><input value={profile.city} onChange={e => setProfile({...profile, city: e.target.value })} />
-        <label>Specialty</label><input value={profile.specialty} onChange={e => setProfile({...profile, specialty: e.target.value })} />
-        <label>About you</label><textarea placeholder="Your approach to care, interests and professional story" rows="4" value={profile.about} onChange={e => setProfile({...profile, about: e.target.value })}></textarea>
-        <p className="modal-note">Your page and posts are public and unverified. Publishing access stays in this browser; keep its data to retain access.</p>
-        <button className="modal-create-btn" onClick={() => addPost(`Professional page: ${profile.name || 'Dr.'}`)}>Create my professional page ↗</button>
-      </ModalWrapper>
-
-      <ModalWrapper open={activeModal === 'post'} onClose={() => setActiveModal(null)}>
-        <h2>Create Photo / Post</h2>
-        <p className="modal-sub">Your own public post. Free, with no login required.</p>
-        <label>Full name</label><input placeholder="Dr. Your name" />
-        <label>City & state</label><input defaultValue="Bengaluru, Karnataka" />
-        <label>Specialty</label><input defaultValue="Small Animal Medicine" />
-        <label>About your case</label><textarea placeholder="Share a discovery, a case, a little inspiration..." rows="4" value={postText} onChange={e => setPostText(e.target.value)}></textarea>
-        <p className="modal-note">Your post is public and unverified. Keep it de-identified and consent-reviewed.</p>
-        <button className="modal-create-btn" onClick={() => addPost(postText || 'New Photo/Post shared')}>Post to community ↗</button>
-      </ModalWrapper>
-
-      <ModalWrapper open={activeModal === 'clinical'} onClose={() => setActiveModal(null)}>
-        <h2>Share Clinical Case</h2>
-        <p className="modal-sub">Your own public clinical case. Free, with no login required.</p>
-        <label>Full name</label><input placeholder="Dr. Your name" />
-        <label>City & state</label><input defaultValue="Bengaluru, Karnataka" />
-        <label>Specialty</label><input defaultValue="Small Animal Medicine" />
-        <label>About your case</label><textarea placeholder="De-identified history, findings, treatment and outcome..." rows="4"></textarea>
-        <p className="modal-note">Ensure consent reviewed and de-identified for peer discussion.</p>
-        <button className="modal-create-btn" onClick={() => addPost('Clinical case shared')}>Publish clinical case ↗</button>
-      </ModalWrapper>
-
-      <ModalWrapper open={activeModal === 'story'} onClose={() => setActiveModal(null)}>
-        <h2>Create Story</h2>
-        <p className="modal-sub">Visible for 24 hours. Free, with no login required.</p>
-        <label>Full name</label><input placeholder="Dr. Your name" />
-        <label>City & state</label><input defaultValue="Bengaluru, Karnataka" />
-        <label>Specialty</label><input defaultValue="Small Animal Medicine" />
-        <label>About your case</label><textarea placeholder="Add caption to your story..." rows="4"></textarea>
-        <p className="modal-note">Your story is public for 24 hours and unverified.</p>
-        <button className="modal-create-btn" onClick={() => addPost('New Story added')}>Add to story ↗</button>
-      </ModalWrapper>
-
-      <ModalWrapper open={activeModal === 'video'} onClose={() => setActiveModal(null)}>
-        <h2>Upload Short Video</h2>
-        <p className="modal-sub">Share small moments, big discoveries. Free, no login required.</p>
-        <label>Full name</label><input placeholder="Dr. Your name" />
-        <label>City & state</label><input defaultValue="Bengaluru, Karnataka" />
-        <label>Specialty</label><input defaultValue="Small Animal Medicine" />
-        <label>About your case</label><textarea placeholder="Context for your video..." rows="4"></textarea>
-        <p className="modal-note">Your video is public and unverified.</p>
-        <button className="modal-create-btn" onClick={() => addPost('Short video uploaded')}>Upload short video ↗</button>
-      </ModalWrapper>
-
-      <ModalWrapper open={activeModal === 'ai'} onClose={() => setActiveModal(null)}>
-        <h2>AI Case Assistant ✨</h2>
-        <p className="modal-sub">Your own AI-powered clinical support. Free, with no login required.</p>
-        <label>Full name</label><input placeholder="Dr. Your name" />
-        <label>City & state</label><input defaultValue="Bengaluru, Karnataka" />
-        <label>Specialty</label><input defaultValue="Small Animal Medicine" />
-        <label>About your case</label><textarea placeholder="Your approach to care, interests and professional story" rows="4"></textarea>
-        <p className="modal-note">Your page and posts are public and unverified. AI suggestions are assistive only.</p>
-        <button className="modal-create-btn" style={{ background: '#0F3D2E', color: '#fff' }}>Ask AI assistant ↗</button>
-      </ModalWrapper>
     </div>
   );
 }

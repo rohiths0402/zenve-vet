@@ -1,0 +1,231 @@
+
+.doctor-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid #e0e0d9;
+  border-radius: 8px;
+  background: #fff;
+  color: #111b17;
+  text-align: left;
+  transition: box-shadow 0.18s ease;
+}
+
+.doctor-card:hover {
+  box-shadow: 0 5px 18px rgb(16 48 33 / 8%);
+}
+
+.doctor-card__banner {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-shrink: 0;
+  height: 110px;
+  padding: 45px 25px 0;
+  background: #07543c;
+}
+
+.doctor-card__stethoscope {
+  position: absolute;
+  top: 24px;
+  left: 23px;
+  width: 54px;
+  height: 54px;
+  color: #647c47;
+  opacity: 0.9;
+}
+
+.doctor-card__banner-city {
+  position: absolute;
+  top: 45px;
+  right: 25px;
+  left: auto;
+  z-index: 2;
+
+  max-width: 55%;
+  overflow: hidden;
+
+  color: #e9b94e;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-card__avatar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
+  margin-top: -48px;
+  margin-left: 25px;
+  overflow: hidden;
+  border: 5px solid #fff;
+  border-radius: 50%;
+  background: #e9ebe5;
+  color: #07543c;
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.doctor-card__avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.doctor-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 26px 25px 24px;
+}
+
+.doctor-card__verification {
+  margin: 0 0 17px;
+  color: #c07c4a;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 1.05px;
+  line-height: 1.5;
+}
+
+.doctor-card__name {
+  margin: 0 0 12px;
+  color: #111714;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.doctor-card__specialty {
+  margin: 0 0 12px;
+  color: #08715a;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.doctor-card__location {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 25px;
+  color: #69756e;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.doctor-card__location svg {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+}
+
+.doctor-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: auto;
+}
+
+.doctor-card__view-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #deded4;
+  border-radius: 2px;
+  color: #101713;
+  background: #f8f7f2;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.doctor-card__view-button:hover {
+  border-color: #9baa9b;
+  background: #f0f2eb;
+}
+
+.doctor-card__external {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.doctor-card__connect-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: #17221c;
+  background: transparent;
+  font-family: Arial, sans-serif;
+  font-size: 26px;
+  font-weight: 300;
+  cursor: pointer;
+}
+
+.doctor-card__connect-button:hover {
+  color: #07543c;
+  background: #edf3ed;
+}
+
+.doctor-card button:focus-visible {
+  outline: 2px solid #287b58;
+  outline-offset: 3px;
+}
+
+@media (max-width: 650px) {
+  .doctor-card__banner {
+    height: 100px;
+  }
+
+  .doctor-card__avatar {
+    width: 86px;
+    height: 86px;
+    margin-top: -43px;
+    margin-left: 20px;
+  }
+
+  .doctor-card__body {
+    padding: 22px 20px 20px;
+  }
+
+  .doctor-card__name {
+    font-size: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doctor-card,
+  .doctor-card button {
+    transition: none;
+  }
+}
