@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -74,21 +73,18 @@ export default function BenefitsPage() {
 
   const handleNav = (label) => {
     setActiveNav(label);
-    if (label === "Search") {
-      setShowSearch(true);
-    } else {
-      setShowSearch(false);
-    }
+    setShowSearch(label === "Search");
+  };
+
+  const openProfile = () => {
+    setSubmitted(false);
+    setShowProfile(true);
   };
 
   return (
     <div className="bv-app">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
-
-        * {
-          box-sizing: border-box;
-        }
 
         .bv-app {
           --green: #07573c;
@@ -98,11 +94,24 @@ export default function BenefitsPage() {
           --line: #e7d5ac;
           --text: #17231e;
           --muted: #707973;
+
+          width: 100%;
+          min-width: 0;
+          min-height: 100vh;
+          margin: 0;
+          padding: 0;
           background: var(--cream);
           color: var(--text);
           font-family: 'DM Sans', sans-serif;
-          min-height: 100vh;
           font-size: 13px;
+          overflow-x: clip;
+          box-sizing: border-box;
+        }
+
+        .bv-app *,
+        .bv-app *::before,
+        .bv-app *::after {
+          box-sizing: border-box;
         }
 
         .bv-app button,
@@ -116,282 +125,7 @@ export default function BenefitsPage() {
           cursor: pointer;
         }
 
-        .bv-header {
-          height: 72px;
-          background: #fff;
-          border-bottom: 1px solid #ecebe4;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 30px;
-          gap: 22px;
-          position: sticky;
-          top: 0;
-          z-index: 50;
-        }
-
-        .bv-brand {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-shrink: 0;
-        }
-
-        .bv-logo {
-          width: 35px;
-          height: 35px;
-          border: 1px solid #eee5cf;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--gold);
-          font-size: 21px;
-        }
-
-        .bv-brand-name {
-          font-family: 'Manrope', sans-serif;
-          font-weight: 800;
-          font-size: 19px;
-          letter-spacing: 2px;
-          color: var(--green);
-          line-height: 1.1;
-        }
-
-        .bv-brand-sub {
-          color: #8b806b;
-          font-size: 7px;
-          letter-spacing: 2px;
-          margin-top: 5px;
-        }
-
-        .bv-search {
-          height: 35px;
-          width: min(410px, 36vw);
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 0 12px;
-          border: 1px solid #e6e5dd;
-          background: #fafaf7;
-          border-radius: 5px;
-          position: relative;
-          color: #738079;
-        }
-
-        .bv-search input {
-          border: none;
-          outline: none;
-          background: transparent;
-          flex: 1;
-          width: 50px;
-          font-size: 11px;
-          color: var(--text);
-        }
-
-        .bv-country {
-          font-size: 8px;
-          letter-spacing: 1px;
-          border-left: 1px solid #e7e4da;
-          padding-left: 12px;
-        }
-
-        .bv-header-right {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 25px;
-          white-space: nowrap;
-        }
-
-        .bv-community {
-          font-size: 10px;
-          color: #6c796f;
-          display: flex;
-          align-items: center;
-          gap: 7px;
-        }
-
-        .bv-dot {
-          width: 5px;
-          height: 5px;
-          background: #2c986d;
-          border-radius: 50%;
-        }
-
-        .bv-create {
-          background: #f5ebd1;
-          border: 1px solid #e6d4a8;
-          color: #252a23;
-          padding: 10px 15px;
-          border-radius: 2px;
-          font-size: 10px;
-          transition: background .2s, transform .2s;
-        }
-
-        .bv-create:hover {
-          background: #ead7a8;
-          transform: translateY(-1px);
-        }
-
-        .bv-create span {
-          font-size: 16px;
-          margin-right: 7px;
-          vertical-align: -1px;
-        }
-
-        .bv-layout {
-          display: grid;
-          grid-template-columns: 220px minmax(0, 1fr);
-          align-items: start;
-        }
-
-        .bv-sidebar {
-          position: sticky;
-          top: 72px;
-          height: calc(100vh - 72px);
-          overflow-y: auto;
-          background: #fff;
-          border-right: 1px solid #e7e6df;
-          padding: 37px 19px 25px;
-          z-index: 10;
-        }
-
-        .bv-eyebrow {
-          font-size: 8px;
-          letter-spacing: 1.6px;
-          font-weight: 700;
-          color: #9a7950;
-          text-transform: uppercase;
-        }
-
-        .bv-side-heading {
-          font-family: 'Manrope', sans-serif;
-          font-size: 17px;
-          line-height: 1.45;
-          font-weight: 600;
-          margin: 14px 0 24px;
-        }
-
-        .bv-nav {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .bv-nav-item {
-          width: 100%;
-          min-height: 37px;
-          padding: 9px 10px;
-          border: none;
-          border-radius: 2px;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          text-align: left;
-          background: transparent;
-          color: #64716a;
-          font-size: 11px;
-          transition: background .2s, color .2s;
-          position: relative;
-        }
-
-        .bv-nav-item:hover {
-          background: #f3f5ef;
-          color: var(--green);
-        }
-
-        .bv-nav-item.active {
-          background: #e8f0e9;
-          color: var(--green);
-          font-weight: 700;
-        }
-
-        .bv-nav-icon {
-          font-size: 17px;
-          width: 15px;
-          text-align: center;
-          line-height: 1;
-        }
-
-        .bv-active-dot {
-          margin-left: auto;
-          height: 5px;
-          width: 5px;
-          background: #247b55;
-          border-radius: 50%;
-        }
-
-        .bv-side-divider {
-          border-top: 1px solid #deded6;
-          margin: 20px 0;
-        }
-
-        .bv-discover {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-          border: none;
-          background: transparent;
-          color: #68736b;
-          padding: 12px 0;
-          text-align: left;
-          font-size: 10px;
-          transition: color .2s;
-        }
-
-        .bv-discover:hover {
-          color: var(--green);
-        }
-
-        .bv-side-promo {
-          background: #f6ebd1;
-          border: 1px solid #eddfbd;
-          padding: 15px 12px;
-          margin-top: 27px;
-          transition: box-shadow .2s, transform .2s;
-        }
-
-        .bv-side-promo:hover {
-          box-shadow: 0 7px 22px #163e2410;
-          transform: translateY(-2px);
-        }
-
-        .bv-side-promo strong {
-          display: block;
-          font-family: 'Manrope', sans-serif;
-          font-size: 12px;
-          line-height: 1.5;
-          margin: 8px 0;
-        }
-
-        .bv-side-promo p {
-          font-size: 10px;
-          line-height: 1.6;
-          color: #746c5c;
-        }
-
-        .bv-side-promo button {
-          background: var(--green);
-          color: white;
-          border: none;
-          padding: 8px 10px;
-          font-size: 9px;
-          margin-top: 4px;
-        }
-
-        /* Benefits page uses the existing shared Topbar and Sidebar. */
-        .bv-app {
-          width: calc(100% - 280px);
-          min-width: 0;
-          min-height: calc(100vh - 104px);
-          margin-left: 280px;
-          margin-top: 104px;
-          overflow-x: hidden;
-        }
-
-        /* Do not render a second Topbar or Sidebar inside Benefits. */
+      
         .bv-header,
         .bv-sidebar {
           display: none !important;
@@ -402,36 +136,35 @@ export default function BenefitsPage() {
           width: 100%;
           min-width: 0;
           margin: 0;
+          padding: 0;
         }
 
         .bv-main {
+          display: block;
           box-sizing: border-box;
-          min-width: 0;
-          padding: 24px 28px 60px;
-          max-width: none;
           width: 100%;
+          max-width: none;
+          min-width: 0;
           margin: 0;
+          padding: 24px 28px 60px;
         }
 
-        @media (max-width: 760px) {
-          .bv-app {
-            width: 100%;
-            margin-left: 0;
-            margin-top: 76px;
-            min-height: calc(100vh - 76px);
-          }
-
-          .bv-main {
-            padding: 16px 14px 40px;
-          }
+        .bv-eyebrow {
+          font-size: 8px;
+          letter-spacing: 1.6px;
+          font-weight: 700;
+          color: #9a7950;
+          text-transform: uppercase;
         }
 
         .bv-hero {
+          width: 100%;
+          min-width: 0;
           height: 308px;
           border-radius: 4px;
           overflow: hidden;
           position: relative;
-          margin-top: 0;
+          margin: 0;
           background-color: #064b35;
           background-image:
             linear-gradient(90deg, rgba(3,66,43,.91), rgba(4,79,52,.68)),
@@ -518,6 +251,8 @@ export default function BenefitsPage() {
 
         .bv-grid {
           display: grid;
+          width: 100%;
+          min-width: 0;
           grid-template-columns: repeat(3, minmax(0, 1fr));
           column-gap: 27px;
           row-gap: 0;
@@ -637,10 +372,7 @@ export default function BenefitsPage() {
 
         .bv-overlay {
           position: fixed;
-          top: 104px;
-          left: 280px;
-          right: 0;
-          bottom: 0;
+          inset: 0;
           background: rgba(12, 22, 17, .58);
           z-index: 2147483000;
           display: flex;
@@ -655,7 +387,7 @@ export default function BenefitsPage() {
           box-sizing: border-box;
           width: min(100%, 460px);
           max-width: 460px;
-          max-height: calc(100% - 16px);
+          max-height: calc(100vh - 48px);
           overflow-y: auto;
           background: #fff;
           border: 1px solid #e8e2d4;
@@ -719,6 +451,7 @@ export default function BenefitsPage() {
         .bv-form select,
         .bv-form textarea {
           width: 100%;
+          min-width: 0;
           border: 1px solid #e4e4dc;
           border-radius: 2px;
           background: #fafaf7;
@@ -818,32 +551,14 @@ export default function BenefitsPage() {
           }
         }
 
-        @media (max-width: 1100px) {
-          .bv-header {
-            padding: 0 18px;
-            gap: 12px;
-          }
-
-          .bv-header-right {
-            gap: 12px;
-          }
-
-          .bv-layout {
-            grid-template-columns: 190px minmax(0, 1fr);
-          }
-
-          .bv-sidebar {
-            padding-left: 14px;
-            padding-right: 14px;
-          }
-
+        @media (max-width: 1100px) and (min-width: 761px) {
           .bv-main {
             padding-left: 24px;
             padding-right: 24px;
           }
 
           .bv-grid {
-            gap: 0 18px;
+            column-gap: 18px;
           }
 
           .bv-card h3 {
@@ -852,82 +567,20 @@ export default function BenefitsPage() {
         }
 
         @media (max-width: 760px) {
-          .bv-header {
-            height: auto;
-            min-height: 66px;
-            padding: 12px 15px;
-            flex-wrap: wrap;
-          }
-
-          .bv-brand-name {
-            font-size: 16px;
-          }
-
-          .bv-search {
-            order: 3;
+          .bv-app {
             width: 100%;
-            flex: 1 0 100%;
-          }
-
-          .bv-header-right {
-            margin-left: auto;
-          }
-
-          .bv-community {
-            display: none;
-          }
-
-          .bv-create {
-            padding: 9px 10px;
-          }
-
-          .bv-layout {
-            display: block;
-          }
-
-          .bv-sidebar {
-            position: relative;
-            top: auto;
-            width: 100%;
-            height: auto;
-            padding: 12px 14px;
-            border-right: none;
-            border-bottom: 1px solid #e7e6df;
-          }
-
-          .bv-sidebar > .bv-eyebrow,
-          .bv-side-heading,
-          .bv-side-divider,
-          .bv-discover,
-          .bv-side-promo {
-            display: none;
-          }
-
-          .bv-nav {
-            flex-direction: row;
-            overflow-x: auto;
-            gap: 5px;
-            padding-bottom: 2px;
-          }
-
-          .bv-nav-item {
-            width: auto;
-            min-width: max-content;
-            min-height: 36px;
-            padding: 8px 11px;
-          }
-
-          .bv-nav-icon {
-            font-size: 15px;
+            min-height: 100vh;
+            margin: 0;
           }
 
           .bv-main {
-            padding: 0 15px 40px;
+            width: 100%;
+            padding: 16px 14px 40px;
           }
 
           .bv-hero {
             height: 300px;
-            margin-top: 14px;
+            margin-top: 0;
             background-position: center;
           }
 
@@ -945,31 +598,33 @@ export default function BenefitsPage() {
 
           .bv-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0 18px;
+            column-gap: 18px;
           }
 
           .bv-bottom h2 {
             font-size: 23px;
           }
-        }
 
-        @media (max-width: 760px) {
           .bv-overlay {
-            top: 76px;
-            left: 0;
             padding: 14px;
           }
+
           .bv-modal {
             width: 100%;
             max-width: 460px;
-            max-height: calc(100% - 8px);
+            max-height: calc(100vh - 28px);
             padding: 21px;
           }
         }
 
         @media (max-width: 450px) {
+          .bv-main {
+            padding: 14px 12px 36px;
+          }
+
           .bv-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
+            column-gap: 0;
           }
 
           .bv-hero {
@@ -998,151 +653,7 @@ export default function BenefitsPage() {
         }
       `}</style>
 
-      {/* Top navigation */}
-      <header className="bv-header">
-        <div className="bv-brand">
-          <div className="bv-logo">♧</div>
-          <div>
-            <div className="bv-brand-name">
-              ZENVE VET<sup style={{ fontSize: 8 }}>™</sup>
-            </div>
-            <div className="bv-brand-sub">
-              THE PROFESSIONAL NETWORK
-            </div>
-          </div>
-        </div>
-
-        <div className="bv-search">
-          <span>⌕</span>
-          <input
-            type="text"
-            placeholder="Search doctors, specialties, cities..."
-            value={search}
-            onFocus={() => setShowSearch(true)}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setShowSearch(true);
-            }}
-          />
-          <span className="bv-country">INDIA</span>
-
-          {showSearch && (
-            <div className="bv-search-results">
-              <strong>Search the network</strong>
-              {search.trim() ? (
-                <>
-                  <p>Doctors matching “{search}”</p>
-                  <p>Veterinary specialties</p>
-                  <p>Professional communities</p>
-                </>
-              ) : (
-                <>
-                  <p>Search veterinary professionals</p>
-                  <p>Explore specialties and cities</p>
-                </>
-              )}
-              <button
-                onClick={() => setShowSearch(false)}
-                style={{
-                  border: "none",
-                  background: "#edf3ed",
-                  color: "#07573c",
-                  padding: "7px 10px",
-                  marginTop: 7,
-                }}
-              >
-                Close
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="bv-header-right">
-          <div className="bv-community">
-            <span className="bv-dot" />
-            Open community
-          </div>
-          <button
-            className="bv-create"
-            onClick={() => {
-              setSubmitted(false);
-              setShowProfile(true);
-            }}
-          >
-            <span>＋</span>Create your profile
-          </button>
-        </div>
-      </header>
-
       <div className="bv-layout">
-        {/* Left sidebar */}
-        <aside className="bv-sidebar">
-          <div className="bv-eyebrow">Your professional world</div>
-
-          <h2 className="bv-side-heading">
-            Great minds.
-            <br />
-            Healthier tomorrows.
-          </h2>
-
-          <nav className="bv-nav">
-            {navItems.map((item) => (
-              <button
-                key={item.label}
-                className={`bv-nav-item ${
-                  activeNav === item.label ? "active" : ""
-                }`}
-                onClick={() => handleNav(item.label)}
-                title={item.label}
-              >
-                <span className="bv-nav-icon">{item.icon}</span>
-                <span>{item.label}</span>
-                {activeNav === item.label && (
-                  <span className="bv-active-dot" />
-                )}
-              </button>
-            ))}
-          </nav>
-
-          <div className="bv-side-divider" />
-
-          <div className="bv-eyebrow">Discover &amp; grow</div>
-
-          {[
-            ["♧", "Innovation & scholarships"],
-            ["▤", "Clinical resources"],
-            ["↗", "Professional learning"],
-          ].map(([icon, label]) => (
-            <button
-              key={label}
-              className="bv-discover"
-              onClick={() => {
-                setActiveNav(label);
-              }}
-            >
-              <span>
-                {icon} &nbsp; {label}
-              </span>
-              <span>↗</span>
-            </button>
-          ))}
-
-          <div className="bv-side-promo">
-            <div className="bv-eyebrow">Your next chapter</div>
-            <strong>
-              Your next chapter starts here.
-            </strong>
-            <p>
-              Build your professional presence and connect with a growing
-              veterinary community.
-            </p>
-            <button onClick={() => setShowProfile(true)}>
-              Create your page ↗
-            </button>
-          </div>
-        </aside>
-
-        {/* Main page */}
         <main className="bv-main">
           <section className="bv-hero">
             <div className="bv-hero-content">
@@ -1157,13 +668,7 @@ export default function BenefitsPage() {
                 <br />
                 Create what comes next for animal health.
               </p>
-              <button
-                className="bv-hero-btn"
-                onClick={() => {
-                  setSubmitted(false);
-                  setShowProfile(true);
-                }}
-              >
+              <button className="bv-hero-btn" onClick={openProfile}>
                 Create your free page <span>↗</span>
               </button>
             </div>
@@ -1205,157 +710,206 @@ export default function BenefitsPage() {
 
           <section className="bv-bottom">
             <h2>Your work deserves a wider world.</h2>
-            <button
-              onClick={() => {
-                setSubmitted(false);
-                setShowProfile(true);
-              }}
-            >
+            <button onClick={openProfile}>
               Create your free page ↗
             </button>
           </section>
         </main>
       </div>
 
-      {/* Create profile popup */}
-      {showProfile && createPortal((
-        <div
-          className="bv-overlay"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowProfile(false);
-            }
-          }}
-        >
+      {showProfile &&
+        createPortal(
           <div
-            className="bv-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="bv-modal-title"
+            className="bv-overlay"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowProfile(false);
+              }
+            }}
           >
-            <div className="bv-modal-head">
-              <div>
-                <div className="bv-eyebrow">
-                  Join the professional network
+            <div
+              className="bv-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="bv-modal-title"
+            >
+              <div className="bv-modal-head">
+                <div>
+                  <div className="bv-eyebrow">
+                    Join the professional network
+                  </div>
+                  <h2 id="bv-modal-title">
+                    Make your professional mark.
+                  </h2>
+                  <div className="bv-modal-sub">
+                    Start building your veterinary profile.
+                  </div>
                 </div>
-                <h2 id="bv-modal-title">
-                  Make your professional mark.
-                </h2>
-                <div className="bv-modal-sub">
-                  Start building your veterinary profile.
-                </div>
-              </div>
 
-              <button
-                className="bv-close"
-                onClick={() => setShowProfile(false)}
-                aria-label="Close popup"
-              >
-                ×
-              </button>
-            </div>
-
-            {submitted ? (
-              <div className="bv-success">
-                <div className="bv-success-icon">✓</div>
-                <h2>You're ready for the next step.</h2>
-                <p>
-                  Your form has been completed in this demo. Connect a
-                  backend to save profile details and submit them to a
-                  real service.
-                </p>
                 <button
-                  className="bv-form-submit"
+                  className="bv-close"
                   onClick={() => setShowProfile(false)}
+                  aria-label="Close popup"
                 >
-                  Back to benefits
+                  ×
                 </button>
               </div>
-            ) : (
-              <form
-                className="bv-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setSubmitted(true);
-                }}
-              >
-                <label>
-                  Full name
-                  <input
-                    type="text"
-                    placeholder="Enter your full name"
-                    required
-                  />
-                </label>
 
-                <label>
-                  Professional email
-                  <input
-                    type="email"
-                    placeholder="you@example.com"
-                    required
-                  />
-                </label>
-
-                <label>
-                  Professional role
-                  <select defaultValue="" required>
-                    <option value="" disabled>
-                      Select your role
-                    </option>
-                    <option>Veterinarian</option>
-                    <option>Veterinary student</option>
-                    <option>Veterinary researcher</option>
-                    <option>Veterinary educator</option>
-                    <option>Animal health professional</option>
-                    <option>Other</option>
-                  </select>
-                </label>
-
-                <label>
-                  Specialty / area of interest
-                  <input
-                    type="text"
-                    placeholder="e.g. Small animal practice"
-                  />
-                </label>
-
-                <label>
-                  City
-                  <input
-                    type="text"
-                    placeholder="Your city"
-                    required
-                  />
-                </label>
-
-                <label>
-                  Tell us about yourself
-                  <textarea
-                    placeholder="Your experience, interests and professional goals..."
-                  />
-                </label>
-
-                <button type="submit" className="bv-form-submit">
-                  Create your free page ↗
-                </button>
-
-                <div
-                  style={{
-                    fontSize: 9,
-                    color: "#858b83",
-                    lineHeight: 1.7,
-                    textAlign: "center",
+              {submitted ? (
+                <div className="bv-success">
+                  <div className="bv-success-icon">✓</div>
+                  <h2>You're ready for the next step.</h2>
+                  <p>
+                    Your form has been completed in this demo. Connect a
+                    backend to save profile details and submit them to a
+                    real service.
+                  </p>
+                  <button
+                    className="bv-form-submit"
+                    onClick={() => setShowProfile(false)}
+                  >
+                    Back to benefits
+                  </button>
+                </div>
+              ) : (
+                <form
+                  className="bv-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setSubmitted(true);
                   }}
                 >
-                  Frontend demo only. Form details are not sent to a
-                  server.
-                </div>
-              </form>
-            )}
-          </div>
+                  <label>
+                    Full name
+                    <input
+                      type="text"
+                      placeholder="Enter your full name"
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Professional email
+                    <input
+                      type="email"
+                      placeholder="you@example.com"
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Professional role
+                    <select defaultValue="" required>
+                      <option value="" disabled>
+                        Select your role
+                      </option>
+                      <option>Veterinarian</option>
+                      <option>Veterinary student</option>
+                      <option>Veterinary researcher</option>
+                      <option>Veterinary educator</option>
+                      <option>Animal health professional</option>
+                      <option>Other</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    Specialty / area of interest
+                    <input
+                      type="text"
+                      placeholder="e.g. Small animal practice"
+                    />
+                  </label>
+
+                  <label>
+                    City
+                    <input
+                      type="text"
+                      placeholder="Your city"
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Tell us about yourself
+                    <textarea
+                      placeholder="Your experience, interests and professional goals..."
+                    />
+                  </label>
+
+                  <button type="submit" className="bv-form-submit">
+                    Create your free page ↗
+                  </button>
+
+                  <div
+                    style={{
+                      fontSize: 9,
+                      color: "#858b83",
+                      lineHeight: 1.7,
+                      textAlign: "center",
+                    }}
+                  >
+                    Frontend demo only. Form details are not sent to a
+                    server.
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {showSearch && (
+        <div
+          className="bv-search-results"
+          style={{
+            position: "fixed",
+            top: 80,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "min(410px, calc(100% - 28px))",
+            zIndex: 1000,
+          }}
+        >
+          <strong>Search the network</strong>
+          <input
+            type="text"
+            placeholder="Search doctors, specialties, cities..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+            style={{
+              width: "100%",
+              padding: 10,
+              border: "1px solid #e5e1d5",
+              marginBottom: 8,
+            }}
+          />
+          {search.trim() ? (
+            <>
+              <p>Doctors matching “{search}”</p>
+              <p>Veterinary specialties</p>
+              <p>Professional communities</p>
+            </>
+          ) : (
+            <>
+              <p>Search veterinary professionals</p>
+              <p>Explore specialties and cities</p>
+            </>
+          )}
+          <button
+            onClick={() => setShowSearch(false)}
+            style={{
+              border: "none",
+              background: "#edf3ed",
+              color: "#07573c",
+              padding: "7px 10px",
+              marginTop: 7,
+            }}
+          >
+            Close
+          </button>
         </div>
-      ), document.body)}
+      )}
     </div>
   );
 }
