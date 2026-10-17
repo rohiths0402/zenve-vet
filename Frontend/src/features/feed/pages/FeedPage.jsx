@@ -1,5 +1,4 @@
-
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Heart,
@@ -13,7 +12,6 @@ import {
   MapPin,
   Video,
   Sparkles,
-  Flag,
   Globe,
   ChevronRight,
   Users,
@@ -24,17 +22,40 @@ import {
 } from "lucide-react";
 
 import "./FeedPage.css";
-// import CreatePostCard from "../components/CreatePostCard.jsx";
-
 import CreatePostCard from "../components/CreatorPostCard.jsx";
 import useFeed from "../hooks/useFeed.js";
 import useStories from "../hooks/useStories.js";
-
+import useAuthSession from "../../../shared/hooks/useAuthSession";
 import {
   createFeedPost,
+  uploadPostMedia,
   likeFeedPost,
   unlikeFeedPost,
 } from "../service/feedService.js";
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function getStoryExpiry(story) {
+  const createdAt =
+    story?.created_at ??
+    story?.createdAt ??
+    story?.published_at ??
+    story?.publishedAt;
+
+  if (!createdAt) return null;
+
+  const timestamp = new Date(createdAt).getTime();
+
+  return Number.isNaN(timestamp)
+    ? null
+    : timestamp + 24 * 60 * 60 * 1000;
+}
+
+function getStoryId(story) {
+  return story?.id ?? story?.pk ?? story?.uuid ?? null;
+}
 
 function getPostId(post) {
   return post?.id ?? post?.pk;
@@ -64,14 +85,111 @@ function getAuthorName(post) {
   );
 }
 
+function resolveBackendUrl(value) {
+  if (!value || typeof value !== "string") return "";
+
+  const url = value.trim();
+  if (!url) return "";
+
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+
+  if (url.startsWith("//")) {
+    return `${window.location.protocol}${url}`;
+  }
+
+  const apiBase = (
+    import.meta.env.VITE_API_BASE_URL ||
+    "http://127.0.0.1:8000/api"
+  ).replace(/\/+$/, "");
+
+  const backendBase = apiBase.replace(/\/api\/?$/i, "");
+
+  return `${backendBase}/${url.replace(/^\/+/, "")}`;
+}
+
 function getAuthorAvatar(post) {
-  return (
+  const author =
+    post?.author && typeof post.author === "object"
+      ? post.author
+      : post?.user && typeof post.user === "object"
+        ? post.user
+        : {};
+
+  return resolveBackendUrl(
     post?.author_avatar ||
-    post?.author?.avatar ||
-    post?.author?.profile_picture ||
-    post?.avatar ||
-    "/default-avatar.png"
+      post?.author_profile_photo_url ||
+      author?.profile_photo_url ||
+      author?.profile_photo ||
+      author?.profile_picture ||
+      author?.avatar_url ||
+      author?.avatar ||
+      post?.profile_photo_url ||
+      post?.profile_picture ||
+      post?.avatar_url ||
+      post?.avatar ||
+      author?.doctor_profile?.profile_photo_url ||
+      ""
   );
+}
+
+function getStoryMediaUrl(story) {
+  return resolveBackendUrl(
+    story?.media_url ||
+      story?.mediaUrl ||
+      story?.image_url ||
+      story?.image ||
+      story?.photo_url ||
+      story?.file_url ||
+      story?.media ||
+      ""
+  );
+}
+
+function getStoryOwnerId(story) {
+  const author =
+    story?.author && typeof story.author === "object"
+      ? story.author
+      : {};
+
+  const user =
+    story?.user && typeof story.user === "object"
+      ? story.user
+      : {};
+
+  const id =
+    story?.author_id ??
+    story?.user_id ??
+    story?.doctor_id ??
+    author?.id ??
+    author?.user_id ??
+    user?.id ??
+    user?.user_id ??
+    story?.author_username ??
+    author?.username ??
+    user?.username;
+
+  return id == null
+    ? `story:${getStoryId(story) ?? "unknown"}`
+    : String(id);
+}
+
+function groupStoriesByDoctor(stories) {
+  const groups = new Map();
+
+  for (const story of stories) {
+    const ownerId = getStoryOwnerId(story);
+
+    if (!groups.has(ownerId)) {
+      groups.set(ownerId, []);
+    }
+
+    groups.get(ownerId).push(story);
+  }
+
+  return Array.from(groups.entries()).map(([ownerId, items]) => ({
+    ownerId,
+    stories: items,
+  }));
 }
 
 function getPostType(post) {
@@ -83,12 +201,12 @@ function getPostType(post) {
 }
 
 function getMediaUrl(post) {
-  return (
+  return resolveBackendUrl(
     post?.media_url ||
-    post?.image_url ||
-    post?.image ||
-    post?.cover_image ||
-    ""
+      post?.image_url ||
+      post?.image ||
+      post?.cover_image ||
+      ""
   );
 }
 
@@ -100,6 +218,56 @@ function getCount(value) {
 function getErrorMessage(error) {
   return error?.message || "Something went wrong. Please try again.";
 }
+
+function validateVideoDuration(file) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const url = URL.createObjectURL(file);
+    let finished = false;
+
+    const cleanup = () => {
+      video.onloadedmetadata = null;
+      video.onerror = null;
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(url);
+    };
+
+    const finish = (error, duration) => {
+      if (finished) return;
+
+      finished = true;
+      cleanup();
+
+      if (error) reject(error);
+      else resolve(duration);
+    };
+
+    video.preload = "metadata";
+
+    video.onloadedmetadata = () => {
+      const duration = video.duration;
+
+      if (!Number.isFinite(duration) || duration <= 0) {
+        finish(new Error("Unable to determine video duration."));
+      } else if (duration > 180) {
+        finish(new Error("Videos must be 3 minutes or shorter."));
+      } else {
+        finish(null, duration);
+      }
+    };
+
+    video.onerror = () => {
+      finish(new Error("Unable to read this video."));
+    };
+
+    video.src = url;
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Hero                                                                       */
+/* -------------------------------------------------------------------------- */
 
 function HeroBanner({ mode }) {
   const isClinical = mode === "clinical-cases";
@@ -139,8 +307,12 @@ function HeroBanner({ mode }) {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Stories                                                                    */
+/* -------------------------------------------------------------------------- */
+
 function StoriesSection({
-  stories,
+  storyGroups,
   loading,
   onCreateStory,
   onOpenStory,
@@ -167,50 +339,68 @@ function StoriesSection({
           <span>Your story</span>
         </button>
 
-        {stories.map((story, index) => (
-          <button
-            type="button"
-            key={story.id ?? `story-${index}`}
-            className="story"
-            onClick={() => onOpenStory(index)}
-            aria-label={`View story by ${
-              story.author_full_name ||
-              story.author_username ||
-              "Veterinarian"
-            }`}
-          >
-            <div className="ring">
-              <img
-                src={
-                  story.author_avatar ||
-                  story.author?.avatar ||
-                  story.avatar ||
-                  "/default-avatar.png"
-                }
-                alt=""
-              />
-            </div>
+        {storyGroups.map((group, index) => {
+          const latest = group.stories[group.stories.length - 1];
 
-            <span>
-              {story.author_full_name ||
-                story.author_username ||
-                story.name ||
-                "Veterinarian"}
-            </span>
-          </button>
-        ))}
+          const author =
+            latest?.author && typeof latest.author === "object"
+              ? latest.author
+              : latest?.user && typeof latest.user === "object"
+                ? latest.user
+                : {};
 
-        {!loading && stories.length === 0 && (
+          const name =
+            author.full_name ||
+            author.fullName ||
+            author.name ||
+            author.username ||
+            latest?.author_full_name ||
+            latest?.author_username ||
+            latest?.doctor_name ||
+            "Veterinarian";
+
+          const avatar = getAuthorAvatar(latest);
+
+          return (
+            <button
+              type="button"
+              key={group.ownerId}
+              className="story"
+              onClick={() => onOpenStory(index)}
+              aria-label={`View ${name}'s stories`}
+            >
+              <div className="ring">
+                {avatar ? (
+                  <img
+                    src={avatar}
+                    alt={`${name}'s profile`}
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <span>{name.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+
+              <span>{name}</span>
+            </button>
+          );
+        })}
+
+        {!loading && storyGroups.length === 0 && (
           <span className="empty-text">No stories yet</span>
         )}
 
-        {loading && (
-          <span className="empty-text">Loading stories...</span>
-        )}
+        {loading && <span className="empty-text">Loading stories...</span>}
       </div>
     </section>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Tabs and filters                                                           */
+/* -------------------------------------------------------------------------- */
 
 function FeedTabs({ tab, setTab, mode, followingAvailable }) {
   const tabs = ["For you", "Popular", "Following"];
@@ -236,9 +426,7 @@ function FeedTabs({ tab, setTab, mode, followingAvailable }) {
 
       <span className="community">
         <span className="status-dot" />
-        {mode === "clinical-cases"
-          ? "CLINICAL CASES"
-          : "COMMUNITY FEED"}
+        {mode === "clinical-cases" ? "CLINICAL CASES" : "COMMUNITY FEED"}
       </span>
     </div>
   );
@@ -271,8 +459,7 @@ function FeedFilters({
   );
 
   const postTypes = useMemo(
-    () =>
-      [...new Set(posts.map(getPostType).filter(Boolean))].sort(),
+    () => [...new Set(posts.map(getPostType).filter(Boolean))].sort(),
     [posts]
   );
 
@@ -284,6 +471,7 @@ function FeedFilters({
         aria-label="Filter by specialty"
       >
         <option value="all-specialties">All specialties</option>
+
         {specialties.map((item) => (
           <option value={item} key={item}>
             {item}
@@ -299,6 +487,7 @@ function FeedFilters({
         <option value="all-posts">
           {mode === "clinical-cases" ? "All clinical cases" : "All posts"}
         </option>
+
         {postTypes.map((item) => (
           <option value={item} key={item}>
             {item.replace(/_/g, " ")}
@@ -311,6 +500,10 @@ function FeedFilters({
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Post card                                                                  */
+/* -------------------------------------------------------------------------- */
+
 function PostCard({
   post,
   index,
@@ -321,14 +514,17 @@ function PostCard({
   onShare,
   mode,
 }) {
+  const type = getPostType(post);
+
   const isClinical =
     mode === "clinical-cases" ||
-    getPostType(post) === "case" ||
-    getPostType(post) === "clinical_case";
+    type === "case" ||
+    type === "clinical_case";
 
   const title = post.title || post.case_title;
   const description = getPostContent(post);
   const author = getAuthorName(post);
+
   const role =
     post.author_specialty ||
     post.specialty ||
@@ -336,18 +532,26 @@ function PostCard({
     post.role ||
     "Veterinary professional";
 
-  const image = getMediaUrl(post);
+  const media = getMediaUrl(post);
   const likesCount = getCount(post.likes_count ?? post.likes);
-  const commentsCount = getCount(
-    post.comments_count ?? post.comments
-  );
-
-  const postId = getPostId(post) ?? `post-${index}`;
+  const commentsCount = getCount(post.comments_count ?? post.comments);
 
   return (
-    <article className="white-card post-card">
+    <article className="white-card post-card" data-post-index={index}>
       <div className="post-head">
-        <img src={getAuthorAvatar(post)} alt="" />
+        {getAuthorAvatar(post) ? (
+          <img
+            src={getAuthorAvatar(post)}
+            alt={`${author}'s profile`}
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+          />
+        ) : (
+          <span className="post-avatar-fallback">
+            {author.charAt(0).toUpperCase()}
+          </span>
+        )}
 
         <div>
           <b>{author}</b>
@@ -357,9 +561,7 @@ function PostCard({
 
       {title && <h2 className="ad-title">{title}</h2>}
 
-      {description && (
-        <p className="post-text">{description}</p>
-      )}
+      {description && <p className="post-text">{description}</p>}
 
       {isClinical && (
         <div className="clinical-details">
@@ -391,17 +593,17 @@ function PostCard({
         </div>
       )}
 
-      {image && (
+      {media && type !== "video" && (
         <img
           className="post-image"
-          src={image}
+          src={media}
           alt={title || "Post attachment"}
           loading="lazy"
         />
       )}
 
-      {getPostType(post) === "video" && image && (
-        <video className="post-image" src={image} controls>
+      {type === "video" && media && (
+        <video className="post-image" src={media} controls preload="metadata">
           Your browser does not support video playback.
         </video>
       )}
@@ -417,23 +619,16 @@ function PostCard({
 
       <div className="stats">
         <span>
-          <Eye size={15} />
-          {post.views_count ?? post.views ?? 0} views
+          <Eye size={15} /> {post.views_count ?? post.views ?? 0} views
         </span>
-
         <span>
-          <Heart size={15} />
-          {likesCount} likes
+          <Heart size={15} /> {likesCount} likes
         </span>
-
         <span>
-          <MessageCircle size={15} />
-          {commentsCount} comments
+          <MessageCircle size={15} /> {commentsCount} comments
         </span>
-
         <span>
-          <Share2 size={15} />
-          {post.shares_count ?? post.shares ?? 0} shares
+          <Share2 size={15} /> {post.shares_count ?? post.shares ?? 0} shares
         </span>
       </div>
 
@@ -444,16 +639,11 @@ function PostCard({
           onClick={() => onToggleLike(post)}
           disabled={likePending}
           aria-pressed={isLiked}
-          aria-label={isLiked ? "Unlike post" : "Like post"}
         >
           {likePending ? (
             <LoaderCircle size={19} />
           ) : (
-            <Heart
-              size={20}
-              strokeWidth={1.8}
-              fill={isLiked ? "currentColor" : "none"}
-            />
+            <Heart size={20} fill={isLiked ? "currentColor" : "none"} />
           )}
           <span>{isLiked ? "Appreciated" : "Appreciate"}</span>
         </button>
@@ -480,42 +670,79 @@ function PostCard({
   );
 }
 
-function PeopleToKnow({ people }) {
+/* -------------------------------------------------------------------------- */
+/* Sidebar                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function PeopleToKnow({ people, onViewAll }) {
   return (
     <section className="right-card">
       <div className="head">
         <b>PEOPLE TO KNOW</b>
-        <span className="text-link">View all</span>
+        <button type="button" className="text-link" onClick={onViewAll}>
+          View all
+        </button>
       </div>
 
       {people.length === 0 ? (
         <p className="empty-text">No suggestions yet</p>
       ) : (
-        people.map((person, index) => (
-          <div
-            key={person.id ?? `person-${index}`}
-            className="person"
-          >
-            <img
-              src={person.avatar || "/default-avatar.png"}
-              alt=""
-            />
+        people.slice(0, 3).map((person, index) => {
+          const name =
+            person.name ||
+            person.full_name ||
+            person.fullName ||
+            person.username ||
+            "Veterinarian";
 
-            <div>
-              <b>
-                {person.name ||
-                  person.full_name ||
-                  person.username ||
-                  "Veterinarian"}
-              </b>
-              <small>{person.spec || person.specialty || ""}</small>
-              <small className="person-location">
-                <MapPin size={12} />
-                {person.city || "Location unavailable"}
-              </small>
+          const avatar = resolveBackendUrl(
+            person.profile_photo_url ||
+              person.profile_picture ||
+              person.avatar_url ||
+              person.avatar ||
+              ""
+          );
+
+          return (
+            <div
+              key={
+                person.id ??
+                person.user_id ??
+                person.username ??
+                `person-${index}`
+              }
+              className="person"
+            >
+              {avatar ? (
+                <img
+                  src={avatar}
+                  alt={`${name}'s profile`}
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <span className="person-avatar-fallback">
+                  {name.charAt(0).toUpperCase()}
+                </span>
+              )}
+
+              <div>
+                <b>{name}</b>
+                <small>
+                  {person.spec ||
+                    person.specialty ||
+                    person.professional_title ||
+                    ""}
+                </small>
+                <small className="person-location">
+                  <MapPin size={12} />
+                  {person.city || "Location unavailable"}
+                </small>
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </section>
   );
@@ -573,6 +800,10 @@ function BreakthroughCard() {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Main FeedPage                                                              */
+/* -------------------------------------------------------------------------- */
+
 export default function FeedPage({
   posts: providedPosts,
   peopleToKnow = [],
@@ -580,6 +811,7 @@ export default function FeedPage({
   mode = "feed",
 }) {
   const navigate = useNavigate();
+  const isAuthenticated = useAuthSession();
 
   const {
     posts: fetchedPosts,
@@ -600,30 +832,97 @@ export default function FeedPage({
   const [pendingLikes, setPendingLikes] = useState(() => new Set());
   const [specialty, setSpecialty] = useState("all-specialties");
   const [postType, setPostType] = useState("all-posts");
+
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
+
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(null);
   const [storyUploadOpen, setStoryUploadOpen] = useState(false);
   const [storyCaption, setStoryCaption] = useState("");
   const [storyFile, setStoryFile] = useState(null);
+  const [storyPreviewUrl, setStoryPreviewUrl] = useState("");
   const [storySubmitting, setStorySubmitting] = useState(false);
+
   const [videoPreview, setVideoPreview] = useState(null);
+  const [videoCaption, setVideoCaption] = useState("");
+  const [videoSubmitting, setVideoSubmitting] = useState(false);
 
-  const safePosts = Array.isArray(providedPosts)
-    ? providedPosts.length
+  useEffect(() => {
+    if (!storyFile) {
+      setStoryPreviewUrl("");
+      return undefined;
+    }
+
+    const url = URL.createObjectURL(storyFile);
+    setStoryPreviewUrl(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [storyFile]);
+
+  useEffect(() => {
+    return () => {
+      if (videoPreview?.url) {
+        URL.revokeObjectURL(videoPreview.url);
+      }
+    };
+  }, [videoPreview]);
+
+  const safePosts =
+    Array.isArray(providedPosts) && providedPosts.length
       ? providedPosts
-      : fetchedPosts
-    : fetchedPosts;
+      : Array.isArray(fetchedPosts)
+        ? fetchedPosts
+        : [];
 
-  const safeStories = Array.isArray(providedStories)
-    ? providedStories.length
-      ? providedStories
-      : fetchedStories
-    : fetchedStories;
+  const safeStories = useMemo(() => {
+    const source =
+      Array.isArray(providedStories) && providedStories.length
+        ? providedStories
+        : fetchedStories;
 
-  const safePeople = Array.isArray(peopleToKnow)
-    ? peopleToKnow
-    : [];
+    const now = Date.now();
+    const seen = new Set();
+
+    return (Array.isArray(source) ? source : []).filter((story) => {
+      const expiry = getStoryExpiry(story);
+
+      if (expiry !== null && expiry <= now) return false;
+
+      const id = getStoryId(story);
+
+      if (id !== null) {
+        const key = String(id);
+
+        if (seen.has(key)) return false;
+
+        seen.add(key);
+      }
+
+      return true;
+    });
+  }, [providedStories, fetchedStories]);
+
+  const storyGroups = useMemo(
+    () => groupStoriesByDoctor(safeStories),
+    [safeStories]
+  );
+
+  const orderedStories = useMemo(
+    () => storyGroups.flatMap((group) => group.stories),
+    [storyGroups]
+  );
+
+  const storyGroupStartIndices = useMemo(() => {
+    let offset = 0;
+
+    return storyGroups.map((group) => {
+      const start = offset;
+      offset += group.stories.length;
+      return start;
+    });
+  }, [storyGroups]);
+
+  const safePeople = Array.isArray(peopleToKnow) ? peopleToKnow : [];
 
   const visiblePosts = useMemo(() => {
     let result = safePosts;
@@ -645,9 +944,7 @@ export default function FeedPage({
     }
 
     if (postType !== "all-posts") {
-      result = result.filter(
-        (post) => getPostType(post) === postType
-      );
+      result = result.filter((post) => getPostType(post) === postType);
     }
 
     if (tab === "Popular") {
@@ -661,8 +958,10 @@ export default function FeedPage({
     return result;
   }, [safePosts, mode, specialty, postType, tab]);
 
+  /* ------------------------------- Create post ---------------------------- */
+
   const handleCreatePost = useCallback(
-    async (content) => {
+    async (input) => {
       setActionError("");
       setActionNotice("");
 
@@ -670,20 +969,79 @@ export default function FeedPage({
         throw new Error("Please sign in before creating a post.");
       }
 
+      const options =
+        typeof input === "string" ? { content: input } : input || {};
+
+      const caption = String(
+        options.content ?? options.caption ?? ""
+      ).trim();
+
+      const mediaFile = options.mediaFile || options.file || null;
+
+      const mediaType =
+        options.mediaType ||
+        (mediaFile?.type?.startsWith("video/") ? "video" : "image");
+
+      let mediaUrl = "";
+
+      if (mediaFile) {
+        if (mediaType === "video") {
+          if (!mediaFile.type.startsWith("video/")) {
+            throw new Error("Please select a valid video file.");
+          }
+
+          if (mediaFile.size > 100 * 1024 * 1024) {
+            throw new Error("Videos must not exceed 100 MB.");
+          }
+
+          await validateVideoDuration(mediaFile);
+        } else {
+          if (!mediaFile.type.startsWith("image/")) {
+            throw new Error("Please select a valid image file.");
+          }
+
+          if (mediaFile.size > 10 * 1024 * 1024) {
+            throw new Error("Images must not exceed 10 MB.");
+          }
+        }
+
+        const uploadResult = await uploadPostMedia(mediaFile, mediaType);
+        mediaUrl = uploadResult?.media_url || "";
+
+        if (!mediaUrl) {
+          throw new Error("The server did not return the uploaded media URL.");
+        }
+      }
+
+      if (!caption && !mediaUrl) {
+        throw new Error("Write a caption or select an image/video.");
+      }
+
       await createFeedPost({
-        content_type: "post",
-        caption: content,
-        is_published: true,
+        content_type:
+          mediaType === "video" && mediaFile ? "video" : "post",
+        caption,
+        media_url: mediaUrl,
+        thumbnail_url: "",
       });
 
       await refreshFeed();
-      setActionNotice("Your post was published.");
+
+      setActionNotice(
+        mediaFile
+          ? mediaType === "video"
+            ? "Your video was published."
+            : "Your image was published."
+          : "Your post was published."
+      );
     },
     [refreshFeed]
   );
 
+  /* ------------------------------ Create story --------------------------- */
+
   const handleCreateStory = useCallback(
-    async (image, caption) => {
+    async (image, caption = "") => {
       setActionError("");
       setActionNotice("");
 
@@ -691,9 +1049,15 @@ export default function FeedPage({
         throw new Error("Please sign in before uploading a story.");
       }
 
-      const { createStory } = await import(
-        "../service/storyService.js"
-      );
+      if (!(image instanceof File) || !image.type.startsWith("image/")) {
+        throw new Error("Please select a valid story image.");
+      }
+
+      if (image.size > 5 * 1024 * 1024) {
+        throw new Error("Story images must not exceed 5 MB.");
+      }
+
+      const { createStory } = await import("../service/storyService.js");
 
       await createStory({ image, caption });
       await refreshStories();
@@ -705,6 +1069,8 @@ export default function FeedPage({
     },
     [refreshStories]
   );
+
+  /* ---------------------------------- Likes ------------------------------- */
 
   async function handleToggleLike(post) {
     const postId = getPostId(post);
@@ -737,11 +1103,8 @@ export default function FeedPage({
       setLikedIds((current) => {
         const next = new Set(current);
 
-        if (wasLiked) {
-          next.delete(postId);
-        } else {
-          next.add(postId);
-        }
+        if (wasLiked) next.delete(postId);
+        else next.add(postId);
 
         return next;
       });
@@ -757,6 +1120,8 @@ export default function FeedPage({
       });
     }
   }
+
+  /* --------------------------------- Share -------------------------------- */
 
   async function handleShare(post) {
     const postId = getPostId(post);
@@ -785,6 +1150,8 @@ export default function FeedPage({
     }
   }
 
+  /* -------------------------------- Discuss ------------------------------ */
+
   function handleDiscuss(post) {
     const postId = getPostId(post);
 
@@ -796,7 +1163,9 @@ export default function FeedPage({
     navigate(`/posts/${postId}#comments`);
   }
 
-  async function handleStoryFileChange(event) {
+  /* ------------------------------- Story upload -------------------------- */
+
+  function handleStoryFileChange(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
 
@@ -837,6 +1206,8 @@ export default function FeedPage({
     }
   }
 
+  /* ------------------------------- Video upload -------------------------- */
+
   function handleVideoChange(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -848,20 +1219,55 @@ export default function FeedPage({
       return;
     }
 
-    const url = URL.createObjectURL(file);
-    setVideoPreview({ file, url });
+    if (file.size > 100 * 1024 * 1024) {
+      setActionError("Videos must not exceed 100 MB.");
+      return;
+    }
+
     setActionError("");
-    setActionNotice(
-      "Video preview is ready. Publishing requires a verified video-upload endpoint."
-    );
+    setActionNotice("");
+
+    setVideoPreview({
+      file,
+      url: URL.createObjectURL(file),
+    });
+
+    setVideoCaption("");
   }
 
   function closeVideoPreview() {
-    if (videoPreview?.url) {
-      URL.revokeObjectURL(videoPreview.url);
-    }
     setVideoPreview(null);
+    setVideoCaption("");
   }
+
+  async function publishVideo(event) {
+    event.preventDefault();
+
+    if (!videoPreview?.file) {
+      setActionError("Please select a video first.");
+      return;
+    }
+
+    setVideoSubmitting(true);
+    setActionError("");
+    setActionNotice("");
+
+    try {
+      await handleCreatePost({
+        content: videoCaption,
+        mediaFile: videoPreview.file,
+        mediaType: "video",
+      });
+
+      closeVideoPreview();
+    } catch (error) {
+      setActionError(getErrorMessage(error));
+    } finally {
+      setVideoSubmitting(false);
+    }
+  }
+
+  /* ---------------------------------- UI --------------------------------- */
 
   return (
     <div className="layout-center-right">
@@ -869,12 +1275,16 @@ export default function FeedPage({
         <HeroBanner mode={mode} />
 
         <StoriesSection
-          stories={safeStories}
+          storyGroups={storyGroups}
           loading={storiesLoading}
           onCreateStory={() =>
             document.getElementById("zenve-story-upload")?.click()
           }
-          onOpenStory={setSelectedStoryIndex}
+          onOpenStory={(groupIndex) =>
+            setSelectedStoryIndex(
+              storyGroupStartIndices[groupIndex] ?? null
+            )
+          }
         />
 
         <input
@@ -885,155 +1295,236 @@ export default function FeedPage({
           onChange={handleStoryFileChange}
         />
 
-        <CreatePostCard
-          mode={mode}
-          onCreatePost={handleCreatePost}
-          onCreateStory={handleCreateStory}
-          onOpenClinicalCase={() => navigate("/clinical-cases")}
-          onOpenVideo={() => {
-            document.getElementById("zenve-video-upload")?.click();
-          }}
-        />
+        {isAuthenticated && (
+          <CreatePostCard
+            mode={mode}
+            onCreatePost={handleCreatePost}
+            onCreateStory={handleCreateStory}
+            onOpenClinicalCase={() => navigate("/clinical-cases")}
+            onOpenVideo={() =>
+              document.getElementById("zenve-video-upload")?.click()
+            }
+          />
+        )}
 
         <input
           id="zenve-video-upload"
           type="file"
-          accept="video/*"
+          accept="video/mp4,video/webm,video/quicktime,video/x-m4v"
           hidden
           onChange={handleVideoChange}
         />
 
+        {/* Story creation modal */}
+
         {storyUploadOpen && (
-          <div className="white-card" role="dialog" aria-modal="true">
-            <div className="head">
-              <b>Create story</b>
-              <button
-                type="button"
-                className="action-btn"
-                onClick={() => {
-                  setStoryUploadOpen(false);
-                  setStoryFile(null);
-                }}
-                aria-label="Close story form"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {storyFile && (
-              <img
-                className="post-image"
-                src={URL.createObjectURL(storyFile)}
-                alt="Story preview"
-              />
-            )}
-
-            <form onSubmit={submitStory}>
-              <label htmlFor="zenve-story-caption">Caption (optional)</label>
-              <textarea
-                id="zenve-story-caption"
-                value={storyCaption}
-                onChange={(event) => setStoryCaption(event.target.value)}
-                maxLength={1000}
-                rows={3}
-              />
-
-              <button
-                className="post-submit"
-                type="submit"
-                disabled={storySubmitting || !storyFile}
-              >
-                {storySubmitting ? "Uploading..." : "Publish story"}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {selectedStoryIndex !== null && (
           <div
-            className="white-card"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Story viewer"
+            className="story-modal-overlay"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setStoryUploadOpen(false);
+                setStoryFile(null);
+              }
+            }}
           >
-            <div className="head">
-              <b>
-                {safeStories[selectedStoryIndex]?.author_full_name ||
-                  safeStories[selectedStoryIndex]?.author_username ||
-                  "Community story"}
-              </b>
+            <section
+              className="story-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="story-modal-title"
+            >
+              <div className="story-modal-header">
+                <h2 id="story-modal-title">Create story</h2>
 
-              <button
-                type="button"
-                className="action-btn"
-                onClick={() => setSelectedStoryIndex(null)}
-                aria-label="Close story"
-              >
-                <X size={18} />
-              </button>
-            </div>
+                <button
+                  type="button"
+                  className="story-modal-close"
+                  onClick={() => {
+                    setStoryUploadOpen(false);
+                    setStoryFile(null);
+                    setStoryCaption("");
+                  }}
+                  aria-label="Close story form"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-            {safeStories[selectedStoryIndex]?.media_url && (
-              <img
-                className="post-image"
-                src={safeStories[selectedStoryIndex].media_url}
-                alt={safeStories[selectedStoryIndex].caption || "Story"}
-              />
-            )}
+              <div className="story-preview">
+                {storyPreviewUrl ? (
+                  <img src={storyPreviewUrl} alt="Story preview" />
+                ) : (
+                  <p>Choose an image to preview your story.</p>
+                )}
+              </div>
 
-            <p>{safeStories[selectedStoryIndex]?.caption}</p>
+              <form onSubmit={submitStory}>
+                <label htmlFor="zenve-story-caption">
+                  Caption (optional)
+                </label>
 
-            <div className="actions">
-              <button
-                type="button"
-                className="action-btn"
-                disabled={selectedStoryIndex === 0}
-                onClick={() =>
-                  setSelectedStoryIndex((index) => index - 1)
-                }
-              >
-                Previous
-              </button>
+                <textarea
+                  id="zenve-story-caption"
+                  value={storyCaption}
+                  onChange={(event) => setStoryCaption(event.target.value)}
+                  maxLength={1000}
+                  rows={3}
+                />
 
-              <button
-                type="button"
-                className="action-btn"
-                disabled={selectedStoryIndex >= safeStories.length - 1}
-                onClick={() =>
-                  setSelectedStoryIndex((index) => index + 1)
-                }
-              >
-                Next
-              </button>
-            </div>
+                <button
+                  className="post-submit"
+                  type="submit"
+                  disabled={storySubmitting || !storyFile}
+                >
+                  {storySubmitting ? "Uploading..." : "Publish story"}
+                </button>
+              </form>
+            </section>
           </div>
         )}
+
+        {/* Story viewer */}
+
+        {selectedStoryIndex !== null &&
+          orderedStories[selectedStoryIndex] && (
+            <div
+              className="story-modal-overlay"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) {
+                  setSelectedStoryIndex(null);
+                }
+              }}
+            >
+              <section
+                className="story-modal story-viewer-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Story viewer"
+              >
+                <div className="head">
+                  <b>{getAuthorName(orderedStories[selectedStoryIndex])}</b>
+
+                  <button
+                    type="button"
+                    className="action-btn"
+                    onClick={() => setSelectedStoryIndex(null)}
+                    aria-label="Close story"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {getStoryMediaUrl(orderedStories[selectedStoryIndex]) && (
+                  <img
+                    className="post-image"
+                    src={getStoryMediaUrl(
+                      orderedStories[selectedStoryIndex]
+                    )}
+                    alt={
+                      orderedStories[selectedStoryIndex].caption || "Story"
+                    }
+                  />
+                )}
+
+                <p>{orderedStories[selectedStoryIndex].caption}</p>
+
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="action-btn"
+                    disabled={selectedStoryIndex === 0}
+                    onClick={() =>
+                      setSelectedStoryIndex((index) => index - 1)
+                    }
+                  >
+                    Previous
+                  </button>
+
+                  <button
+                    type="button"
+                    className="action-btn"
+                    disabled={
+                      selectedStoryIndex >= orderedStories.length - 1
+                    }
+                    onClick={() =>
+                      setSelectedStoryIndex((index) => index + 1)
+                    }
+                  >
+                    Next
+                  </button>
+                </div>
+              </section>
+            </div>
+          )}
+
+        {/* Video preview and publishing modal */}
 
         {videoPreview && (
-          <div className="white-card" role="dialog" aria-modal="true">
-            <div className="head">
-              <b>Video preview</b>
-              <button
-                type="button"
-                className="action-btn"
-                onClick={closeVideoPreview}
-                aria-label="Close video preview"
-              >
-                <X size={18} />
-              </button>
-            </div>
+          <div className="story-modal-overlay">
+            <section
+              className="story-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="video-modal-title"
+            >
+              <div className="story-modal-header">
+                <h2 id="video-modal-title">Publish video</h2>
 
-            <video
-              className="post-image"
-              src={videoPreview.url}
-              controls
-              autoPlay
-            />
+                <button
+                  type="button"
+                  className="story-modal-close"
+                  onClick={closeVideoPreview}
+                  aria-label="Close video preview"
+                  disabled={videoSubmitting}
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-            <p>
-              {videoPreview.file.name} — preview only; publishing is not
-              connected until the backend supports video uploads.
-            </p>
+              <div className="story-preview">
+                <video
+                  src={videoPreview.url}
+                  controls
+                  className="composer-preview"
+                />
+              </div>
+
+              <p>{videoPreview.file.name}</p>
+
+              <form onSubmit={publishVideo}>
+                <label htmlFor="zenve-video-caption">
+                  Caption (optional)
+                </label>
+
+                <textarea
+                  id="zenve-video-caption"
+                  value={videoCaption}
+                  onChange={(event) => setVideoCaption(event.target.value)}
+                  maxLength={5000}
+                  rows={3}
+                  placeholder="Share what this video is about..."
+                  disabled={videoSubmitting}
+                />
+
+                <button
+                  className="post-submit"
+                  type="submit"
+                  disabled={videoSubmitting}
+                >
+                  {videoSubmitting ? (
+                    <>
+                      <LoaderCircle size={16} />
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <Video size={16} />
+                      Publish video
+                    </>
+                  )}
+                </button>
+              </form>
+            </section>
           </div>
         )}
 
@@ -1057,12 +1548,14 @@ export default function FeedPage({
         {feedLoadError && (
           <div className="white-card" role="alert">
             <p>{feedLoadError}</p>
+
             <button
               type="button"
               className="action-btn"
               onClick={refreshFeed}
             >
-              <RefreshCw size={16} /> Retry
+              <RefreshCw size={16} />
+              Retry
             </button>
           </div>
         )}
@@ -1076,6 +1569,7 @@ export default function FeedPage({
         {actionError && (
           <div className="create-post-message error" role="alert">
             {actionError}
+
             <button
               type="button"
               onClick={() => setActionError("")}
@@ -1089,6 +1583,7 @@ export default function FeedPage({
         {actionNotice && (
           <p className="create-post-message success" role="status">
             {actionNotice}
+
             <button
               type="button"
               onClick={() => setActionNotice("")}
@@ -1138,7 +1633,10 @@ export default function FeedPage({
       </main>
 
       <aside className="right-bar">
-        <PeopleToKnow people={safePeople} />
+        <PeopleToKnow
+          people={safePeople}
+          onViewAll={() => navigate("/network")}
+        />
         <ZenveAdvantage />
         <BreakthroughCard />
       </aside>

@@ -1,26 +1,23 @@
-
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import useChatSocket from "./useChatSocket";
 import {
   DEFAULT_META,
   deleteConversation,
   getConversations,
   getMessages,
-  getPresence,
+  getProfile,
+  normalizeIncomingMessage,
   sendMessage,
   setThreadMeta,
 } from "../services/messageService";
 
+const STATUS_RANK = { sent: 0, delivered: 1, read: 2 };
+const TYPING_TIMEOUT = 4000;
+
 export default function useMessaging() {
   const [params, setParams] = useSearchParams();
-
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState([]);
   const [presence, setPresence] = useState({});
@@ -31,8 +28,14 @@ export default function useMessaging() {
   const [notice, setNotice] = useState("");
 
   const timer = useRef(null);
+  const typingTimers = useRef({});
   const messageRequest = useRef(0);
   const activeId = params.get("to");
+  const activeRef = useRef(activeId);
+
+  useEffect(() => {
+    activeRef.current = activeId;
+  }, [activeId]);
 
   const flash = useCallback((text) => {
     setNotice(text);
@@ -56,32 +59,163 @@ export default function useMessaging() {
   useEffect(() => {
     refresh();
 
+    const timers = typingTimers.current;
+
     return () => {
       clearTimeout(timer.current);
+      Object.values(timers).forEach(clearTimeout);
     };
   }, [refresh]);
 
-  // Presence is currently read from local storage.
-  // This does not establish a WebSocket connection.
-  useEffect(() => {
-    const loadPresence = () => {
-      setPresence((previous) => {
-        const next = getPresence();
-
-        return JSON.stringify(previous) === JSON.stringify(next)
-          ? previous
-          : next;
-      });
-    };
-
-    loadPresence();
-
-    const intervalId = setInterval(loadPresence, 2000);
-
-    return () => clearInterval(intervalId);
+  const updatePresence = useCallback((userId, changes) => {
+    setPresence((previous) => ({
+      ...previous,
+      [userId]: { ...previous[userId], ...changes },
+    }));
   }, []);
 
-  // Load messages whenever the selected conversation changes.
+  const handleSocketEvent = useCallback(
+    (event, sendEvent) => {
+      switch (event.type) {
+        case "socket.closed": {
+          setPresence((previous) => {
+            const next = {};
+
+            Object.keys(previous).forEach((id) => {
+              next[id] = { ...previous[id], online: false, typing: false };
+            });
+
+            return next;
+          });
+          break;
+        }
+
+        case "presence.snapshot": {
+          const online = new Set((event.onlineUserIds || []).map(String));
+
+          setPresence((previous) => {
+            const next = {};
+
+            Object.keys(previous).forEach((id) => {
+              const isOnline = online.has(id);
+
+              next[id] = {
+                ...previous[id],
+                online: isOnline,
+                typing: isOnline ? Boolean(previous[id].typing) : false,
+              };
+            });
+
+            online.forEach((id) => {
+              if (!next[id]) next[id] = { online: true, typing: false };
+            });
+
+            return next;
+          });
+          break;
+        }
+
+        case "presence": {
+          const id = String(event.userId);
+
+          setPresence((previous) => ({
+            ...previous,
+            [id]: {
+              ...previous[id],
+              online: Boolean(event.online),
+              typing: event.online ? Boolean(previous[id]?.typing) : false,
+              lastSeen: event.lastSeen || previous[id]?.lastSeen || null,
+            },
+          }));
+          break;
+        }
+
+        case "typing": {
+          const id = String(event.userId);
+          const isTyping = event.isTyping !== false;
+
+          clearTimeout(typingTimers.current[id]);
+          updatePresence(id, { typing: isTyping });
+
+          if (isTyping) {
+            typingTimers.current[id] = setTimeout(() => {
+              updatePresence(id, { typing: false });
+            }, TYPING_TIMEOUT);
+          }
+          break;
+        }
+
+        case "message.new": {
+          const profile = getProfile();
+          const message = normalizeIncomingMessage(event.message, profile?.id);
+          const conversationId = String(event.conversationId);
+          const viewing = conversationId === String(activeRef.current);
+          const incoming = message.from === "them";
+
+          if (viewing) {
+            setMessages((previous) =>
+              previous.some((item) => String(item.id) === String(message.id))
+                ? previous
+                : [...previous, message],
+            );
+          }
+
+          if (incoming) {
+            const senderId = String(
+              event.message?.sender?.id ?? event.message?.sender,
+            );
+
+            clearTimeout(typingTimers.current[senderId]);
+            updatePresence(senderId, { typing: false });
+
+            sendEvent({
+              type: viewing ? "read" : "delivered",
+              conversationId: Number(conversationId),
+              upToId: Number(message.id),
+            });
+          }
+
+          refresh();
+          break;
+        }
+
+        case "message.status": {
+          if (String(event.conversationId) !== String(activeRef.current)) {
+            break;
+          }
+
+          const next = event.status === "seen" ? "read" : "delivered";
+          const upTo = Number(event.upToId);
+
+          setMessages((previous) =>
+            previous.map((item) =>
+              item.from === "me" &&
+              Number(item.id) <= upTo &&
+              STATUS_RANK[item.status] < STATUS_RANK[next]
+                ? { ...item, status: next }
+                : item,
+            ),
+          );
+          break;
+        }
+
+        default:
+          break;
+      }
+    },
+    [refresh, updatePresence],
+  );
+
+  const { sendEvent } = useChatSocket(handleSocketEvent);
+
+  const conversationCount = conversations.length;
+
+  useEffect(() => {
+    if (conversationCount > 0) {
+      sendEvent({ type: "presence.sync" });
+    }
+  }, [conversationCount, sendEvent]);
+
   useEffect(() => {
     const requestId = ++messageRequest.current;
 
@@ -101,6 +235,18 @@ export default function useMessaging() {
         if (requestId !== messageRequest.current) return;
 
         setMessages(rows);
+
+        const lastIncoming = [...rows]
+          .reverse()
+          .find((item) => item.from === "them");
+
+        if (lastIncoming) {
+          sendEvent({
+            type: "read",
+            conversationId: Number(activeId),
+            upToId: Number(lastIncoming.id),
+          });
+        }
 
         await setThreadMeta(activeId, { unread: 0 });
 
@@ -125,29 +271,21 @@ export default function useMessaging() {
         messageRequest.current += 1;
       }
     };
-  }, [activeId, refresh, flash]);
+  }, [activeId, refresh, flash, sendEvent]);
 
   const visible = useMemo(() => {
     const search = query.trim().toLowerCase();
 
-    return conversations.filter(({ doctor, last, meta }) => {
+    return conversations.filter(({ id, doctor, last, meta }) => {
       if (filter === "archived" && !meta.archived) {
         return false;
       }
 
-      if (
-        filter !== "archived" &&
-        filter !== "connections" &&
-        meta.archived
-      ) {
+      if (filter !== "archived" && filter !== "connections" && meta.archived) {
         return false;
       }
 
-      if (
-        filter === "all" &&
-        !last &&
-        String(doctor.id) !== String(activeId)
-      ) {
+      if (filter === "all" && !last && String(id) !== String(activeId)) {
         return false;
       }
 
@@ -168,41 +306,41 @@ export default function useMessaging() {
     });
   }, [conversations, filter, query, activeId]);
 
+  const connections = useMemo(
+    () => conversations.map((conversation) => conversation.doctor),
+    [conversations],
+  );
+
   const unreadCount = useMemo(
     () =>
       conversations.filter(
         (conversation) =>
-          Number(conversation.meta.unread) > 0 &&
-          !conversation.meta.archived
+          Number(conversation.meta.unread) > 0 && !conversation.meta.archived,
       ).length,
-    [conversations]
+    [conversations],
   );
 
-  // The URL's "to" parameter stores the conversation ID.
   const found = conversations.find(
-    (conversation) => String(conversation.id) === String(activeId)
+    (conversation) => String(conversation.id) === String(activeId),
   );
 
   const active = found ? found.doctor : null;
   const activeMeta = found ? found.meta : DEFAULT_META;
-
-  const activePresence = active
-    ? presence[active.id] || presence[activeId] || {}
-    : {};
+  const activePresence = active ? presence[active.id] || {} : {};
 
   const select = useCallback(
     (id) => {
       const conversation = conversations.find(
         (item) =>
           String(item.id) === String(id) ||
-          String(item.doctor.id) === String(id)
+          String(item.doctor.id) === String(id),
       );
 
       if (conversation) {
         setParams({ to: String(conversation.id) });
       }
     },
-    [conversations, setParams]
+    [conversations, setParams],
   );
 
   const patch = useCallback(
@@ -216,7 +354,7 @@ export default function useMessaging() {
         return false;
       }
     },
-    [refresh, flash]
+    [refresh, flash],
   );
 
   const send = useCallback(
@@ -236,7 +374,7 @@ export default function useMessaging() {
         setMessages((previous) => {
           if (
             previous.some(
-              (existing) => String(existing.id) === String(message.id)
+              (existing) => String(existing.id) === String(message.id),
             )
           ) {
             return previous;
@@ -252,7 +390,7 @@ export default function useMessaging() {
         return false;
       }
     },
-    [activeId, refresh, flash]
+    [activeId, refresh, flash],
   );
 
   const act = useCallback(
@@ -289,11 +427,7 @@ export default function useMessaging() {
           const next = !activeMeta.archived;
 
           if (await patch(id, { archived: next })) {
-            flash(
-              next
-                ? "Conversation archived."
-                : "Conversation unarchived."
-            );
+            flash(next ? "Conversation archived." : "Conversation unarchived.");
 
             if (next) setParams({});
           }
@@ -301,10 +435,7 @@ export default function useMessaging() {
         }
 
         case "block": {
-          if (
-            !activeMeta.blocked &&
-            !window.confirm(`Block ${active.name}?`)
-          ) {
+          if (!activeMeta.blocked && !window.confirm(`Block ${active.name}?`)) {
             return;
           }
 
@@ -313,11 +444,7 @@ export default function useMessaging() {
               blocked: !activeMeta.blocked,
             })
           ) {
-            flash(
-              activeMeta.blocked
-                ? "Doctor unblocked."
-                : "Doctor blocked."
-            );
+            flash(activeMeta.blocked ? "Doctor unblocked." : "Doctor blocked.");
           }
           break;
         }
@@ -325,7 +452,7 @@ export default function useMessaging() {
         case "report": {
           if (
             !window.confirm(
-              `Report ${active.name} for inappropriate behaviour?`
+              `Report ${active.name} for inappropriate behaviour?`,
             )
           ) {
             return;
@@ -339,9 +466,7 @@ export default function useMessaging() {
 
         case "delete": {
           if (
-            !window.confirm(
-              "Delete this conversation? This cannot be undone."
-            )
+            !window.confirm("Delete this conversation? This cannot be undone.")
           ) {
             return;
           }
@@ -361,13 +486,14 @@ export default function useMessaging() {
           break;
       }
     },
-    [active, activeId, activeMeta, patch, refresh, setParams, flash]
+    [active, activeId, activeMeta, patch, refresh, setParams, flash],
   );
 
   return {
     loading,
     messagesLoading,
     visible,
+    connections,
     active,
     activeId,
     activeMeta,

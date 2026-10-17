@@ -36,6 +36,13 @@ function Ticks({ status }) {
   return <Check size={15} className="msg-tick" />;
 }
 
+function getPresenceText(live) {
+  if (live.typing) return "typing...";
+  if (live.online) return "Online";
+  if (live.lastSeen) return `Last seen ${formatTime(live.lastSeen)}`;
+  return "Offline";
+}
+
 function Welcome({ doctor, canSend, onSend }) {
   const place = [doctor.city, doctor.state].filter(Boolean).join(", ");
 
@@ -90,6 +97,8 @@ export default function ChatWindow({
     );
   }
 
+  const isLive = live.online || live.typing;
+
   return (
     <section className="msg-chat">
       <header className="msg-chat-head">
@@ -98,7 +107,7 @@ export default function ChatWindow({
           className="msg-chat-profile"
           title="View profile"
         >
-          <Avatar doctor={doctor} online={live.online || live.typing} />
+          <Avatar doctor={doctor} online={isLive} />
           <div className="msg-chat-who">
             <strong>{doctor.name}</strong>
             <small>
@@ -106,11 +115,9 @@ export default function ChatWindow({
               {doctor.city && ` · ${doctor.city}`}
               {doctor.state && `, ${doctor.state}`}
             </small>
-            {(live.typing || live.online) && (
-              <small className="msg-online-text">
-                {live.typing ? "typing..." : "Online"}
-              </small>
-            )}
+            <small className={`msg-online-text ${isLive ? "" : "is-offline"}`}>
+              {getPresenceText(live)}
+            </small>
           </div>
         </Link>
 

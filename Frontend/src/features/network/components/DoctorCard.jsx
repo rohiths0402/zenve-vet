@@ -24,18 +24,23 @@ export default function DoctorCard({
 
   const image =
     doctor.profile_photo_url ||
-    doctor.avatar ||
     doctor.profile_picture ||
+    doctor.profilePicture ||
+    doctor.avatar_url ||
+    doctor.avatar ||
     doctor.profile_image ||
     doctor.image ||
     '';
+
+  const bannerImage =
+    doctor.banner_image_url || doctor.banner_image || doctor.banner || '';
 
   const verified =
     doctor.is_verified === true || doctor.verified === true;
 
   return (
     <article className="doctor-card">
-      <div className="doctor-card__banner">
+      <div className="doctor-card__banner" style={bannerImage ? { backgroundImage: `linear-gradient(90deg, rgba(6,37,27,.25), rgba(6,37,27,.05)), url("${bannerImage}")` } : undefined}>
         <svg
           className="doctor-card__stethoscope"
           viewBox="0 0 64 64"
@@ -76,7 +81,7 @@ export default function DoctorCard({
 
       <div className="doctor-card__avatar">
         {image ? (
-          <img src={image} alt={name} />
+          <img src={image} alt={name} onError={(event) => { event.currentTarget.style.display = 'none' }} />
         ) : (
           <span aria-hidden="true">
             {name.charAt(0).toUpperCase()}

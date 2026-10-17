@@ -123,6 +123,8 @@ WSGI_APPLICATION = "config.wsgi.application"
 # MySQL database
 # --------------------------------------------------
 
+import os
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",

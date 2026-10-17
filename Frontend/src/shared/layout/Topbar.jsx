@@ -1,25 +1,41 @@
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Search, Plus, Bell } from 'lucide-react'
 import './Topbar.css'
+
 import {
   AUTH_EVENT,
   getStoredUser,
   getUserInitial,
   getProfilePicture,
 } from './topbarUtils.js'
+
 import RegistrationModal from '../../features/auth/components/RegistrationModal'
 import SignInModal from '../../features/auth/components/SignInModal'
 import ProfileMenu from './ProfileMenu'
 import NotificationsMenu from './NotificationsMenu'
 
+const PROFILE_PROMPT_DELAY = 30_000
+const PROFILE_PROMPT_KEY = 'zenveProfilePromptShown'
+
 export default function Topbar() {
+  const navigate = useNavigate()
+
   const [activeAuthModal, setActiveAuthModal] = useState(null)
   const [user, setUser] = useState(() => getStoredUser())
   const [activeMenu, setActiveMenu] = useState(null)
 
+  const timerRef = useRef(null)
+
   const refreshUser = useCallback(() => {
-    setUser(getStoredUser())
+    const currentUser = getStoredUser()
+
+    setUser(currentUser)
+
+    if (!currentUser) {
+      setActiveMenu(null)
+    }
   }, [])
 
   useEffect(() => {
@@ -47,6 +63,44 @@ export default function Topbar() {
     }
   }, [refreshUser])
 
+  // Show the profile-completion prompt once per session
+  // after an authenticated user has been active for 30 seconds.
+  useEffect(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+
+    const accessToken = localStorage.getItem('zenveAccessToken')
+
+    if (!user || !accessToken) return undefined
+
+    if (sessionStorage.getItem(PROFILE_PROMPT_KEY) === 'true') {
+      return undefined
+    }
+
+    timerRef.current = window.setTimeout(() => {
+      const currentUser = getStoredUser()
+      const currentToken = localStorage.getItem('zenveAccessToken')
+
+      if (!currentUser || !currentToken) return
+
+      sessionStorage.setItem(PROFILE_PROMPT_KEY, 'true')
+      setActiveMenu(null)
+      setActiveAuthModal(null)
+
+      navigate('/doctors/me?completeProfile=1')
+    }, PROFILE_PROMPT_DELAY)
+
+    return () => {
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+    }
+  }, [user, navigate])
+
+  // Prevent background scrolling while an authentication modal is open.
   useEffect(() => {
     if (!activeAuthModal) return undefined
 
@@ -82,16 +136,31 @@ export default function Topbar() {
   }
 
   function handleLogout() {
-    // Clear both user data and JWT session tokens.
-    localStorage.removeItem('zenveUser')
-    localStorage.removeItem('zenveAccessToken')
-    localStorage.removeItem('zenveRefreshToken')
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+
+    const storageKeys = [
+      'zenveAccessToken',
+      'zenveRefreshToken',
+      'zenveUser',
+      'zenve_user',
+      'user',
+      'currentUser',
+      'zenveProfilePhotoUrl',
+    ]
+
+    storageKeys.forEach((key) => localStorage.removeItem(key))
+    sessionStorage.removeItem(PROFILE_PROMPT_KEY)
 
     setUser(null)
     setActiveMenu(null)
     setActiveAuthModal(null)
 
     window.dispatchEvent(new Event(AUTH_EVENT))
+
+    navigate('/', { replace: true })
   }
 
   const profilePicture = getProfilePicture(user)
@@ -99,7 +168,11 @@ export default function Topbar() {
   return (
     <>
       <header className="zenve-topbar">
-        <a href="/" className="zenve-brand" aria-label="Zenve Vet home">
+        <Link
+          to="/"
+          className="zenve-brand"
+          aria-label="Zenve Vet home"
+        >
           <span className="zenve-brand__mark">ZV</span>
 
           <span className="zenve-brand__text">
@@ -111,25 +184,29 @@ export default function Topbar() {
               THE PROFESSIONAL NETWORK
             </span>
           </span>
-        </a>
+        </Link>
 
         <label className="zenve-search">
-          <Search size={17} aria-hidden="true" />
+          {/* <Search size={17} aria-hidden="true" /> */}
 
-          <input
+          {/* <input
             type="search"
             placeholder="Search doctors, specialties, cities..."
             aria-label="Search doctors, specialties, cities"
-          />
+          /> */}
 
-          <span className="zenve-search__country">INDIA</span>
+          {/* <span className="zenve-search__country">INDIA</span> */}
         </label>
 
         <div className="zenve-topbar__actions">
-          <span className="zenve-community">
+          <Link
+            to="/messages?community=1"
+            className="zenve-community"
+            title="Open Community Discussions"
+          >
             <span className="zenve-community__dot" />
             Open community
-          </span>
+          </Link>
 
           {!user ? (
             <button

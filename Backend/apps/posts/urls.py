@@ -1,20 +1,24 @@
-
 from django.urls import path
 
 from .views import (
     PostListCreateView,
     PostDetailView,
+    PostMediaUploadView,
     PostLikeView,
     PostCommentListCreateView,
     PostCommentDeleteView,
 )
-
 
 urlpatterns = [
     path(
         "",
         PostListCreateView.as_view(),
         name="post-list-create",
+    ),
+    path(
+        "upload-media/",
+        PostMediaUploadView.as_view(),
+        name="post-media-upload",
     ),
     path(
         "<int:pk>/",
@@ -36,4 +40,9 @@ urlpatterns = [
         PostCommentDeleteView.as_view(),
         name="post-comment-delete",
     ),
+    path(
+    "upload-media/",
+    PostMediaUploadView.as_view(),
+    name="post-media-upload",
+),
 ]

@@ -61,41 +61,6 @@
   white-space: nowrap;
 }
 
-.zenve-search {
-  height: 39px;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 12px;
-  border: 1px solid #e4e5df;
-  border-radius: 5px;
-  background: #f8f8f5;
-  color: #64716a;
-  box-sizing: border-box;
-}
-
-.zenve-search input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: #242a24;
-  font: inherit;
-  font-size: 12px;
-}
-
-.zenve-search input::placeholder {
-  color: #9aa19a;
-}
-
-.zenve-search__country {
-  padding-left: 12px;
-  border-left: 1px solid #e2e3dc;
-  font-size: 9px;
-  letter-spacing: 1px;
-}
 
 .zenve-topbar__actions {
   display: flex;
@@ -306,3 +271,4 @@
     right: 48px;
   }
 }
+

@@ -21,11 +21,11 @@ import RegisterPage from '../features/auth/pages/RegisterPage';
 const router = createBrowserRouter([
   {
     path: '/login',
-    element: <LoginPage />,
+    element: <FeedPage />,
   },
   {
     path: '/register',
-    element: <RegisterPage />,
+    element: <FeedPage />,
   },
   {
     element: <AppShell />,

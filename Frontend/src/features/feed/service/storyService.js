@@ -1,75 +1,89 @@
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ||
-  'http://127.0.0.1:8000/api'
-).replace(/\/+$/, '');
+  "http://127.0.0.1:8000/api"
+).replace(/\/+$/, "");
 
-async function storyRequest(path, options = {}) {
-  const token = localStorage.getItem('zenveAccessToken');
+function getToken() {
+  return localStorage.getItem("zenveAccessToken") || "";
+}
 
-  let response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      ...options,
-      credentials: 'include',
-      headers: {
-      Accept: 'application/json',
-      ...(options.body instanceof FormData
-        ? {}
-        : options.body
-          ? { 'Content-Type': 'application/json' }
-          : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-      },
-    });
-  } catch {
-    throw new Error('Cannot connect to the backend. Check that Django is running.');
-  }
+function getHeaders() {
+  const token = getToken();
 
-  const data = await response.json().catch(() => null);
+  return {
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
 
+async function handleResponse(response) {
   if (!response.ok) {
-    const detail =
-      data?.detail ||
-      (typeof data === 'object' && data
-        ? Object.values(data).flat().join(' ')
-        : null);
-
-    throw new Error(detail || `Stories request failed (${response.status}).`);
+    const message = await response.text().catch(() => "");
+    throw new Error(
+      message || `Request failed with status ${response.status}`
+    );
   }
 
-  return data;
+  if (response.status === 204) return null;
+
+  return response.json();
 }
 
 function extractStories(data) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.results)) return data.results;
-  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.stories)) return data.stories;
   return [];
 }
 
-export async function fetchStories({ signal } = {}) {
-  const data = await storyRequest('/stories/', { signal });
+// Fetch all stories for the feed.
+export async function fetchStories() {
+  const response = await fetch(`${API_BASE_URL}/stories/`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+
+  const data = await handleResponse(response);
   return extractStories(data);
 }
 
-export async function fetchMyStories({ signal } = {}) {
-  const data = await storyRequest('/stories/mine/', { signal });
+// Fetch stories created by the logged-in doctor.
+export async function fetchMyStories() {
+  const response = await fetch(`${API_BASE_URL}/stories/mine/`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+
+  const data = await handleResponse(response);
   return extractStories(data);
 }
 
-export async function createStory({ image, caption = '' }) {
-  if (!(image instanceof File)) {
-    throw new Error('Choose an image for your story first.');
+// Create a story with an image and optional caption.
+export async function createStory({ image, caption = "" } = {}) {
+  if (!image) {
+    throw new Error("Please select an image for your story.");
   }
 
   const formData = new FormData();
-  formData.append('image', image);
-  formData.append('caption', caption);
+  formData.append("image", image);
+  formData.append("caption", caption);
 
-  return storyRequest('/stories/', {
-    method: 'POST',
+  const response = await fetch(`${API_BASE_URL}/stories/`, {
+    method: "POST",
+    headers: {
+      ...(getToken()
+        ? { Authorization: `Bearer ${getToken()}` }
+        : {}),
+    },
     body: formData,
   });
+
+  return handleResponse(response);
 }
+
+export default {
+  fetchStories,
+  fetchMyStories,
+  createStory,
+};
