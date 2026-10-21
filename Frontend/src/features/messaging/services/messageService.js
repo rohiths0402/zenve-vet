@@ -144,16 +144,13 @@ async function request(url, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
+    const detail = data.detail || data.message || data.error;
+
+    if (response.status === 401 || (response.status === 403 && !detail)) {
       throw new Error("Your session is not authorized. Please sign in again.");
     }
 
-    throw new Error(
-      data.detail ||
-        data.message ||
-        data.error ||
-        `Messaging request failed (${response.status}).`,
-    );
+    throw new Error(detail || `Messaging request failed (${response.status}).`);
   }
 
   return data;
@@ -288,6 +285,28 @@ export async function getMessages(conversationId) {
   return getRows(data).map((message) => normalizeMessage(message, profile?.id));
 }
 
+export async function startConversation(userId) {
+  const recipientId = Number(userId);
+
+  if (!Number.isInteger(recipientId) || recipientId < 1) {
+    throw new Error("This doctor cannot be messaged yet.");
+  }
+
+  const data = await request(ENDPOINTS.CONVERSATIONS, {
+    method: "POST",
+    body: JSON.stringify({ type: "DIRECT", recipientId }),
+  });
+
+  const conversation = data?.data ?? data;
+  const conversationId = conversation?.id ?? conversation?.conversation_id;
+
+  if (conversationId == null) {
+    throw new Error("Could not open the conversation.");
+  }
+
+  return String(conversationId);
+}
+
 export async function sendMessage(conversationId, { text, attachment } = {}) {
   if (!conversationId) {
     throw new Error("A conversation ID is required to send a message.");
@@ -356,30 +375,6 @@ export async function getUnreadCount() {
     data?.data?.count ??
     0
   );
-}
-export async function createCommunity({ title, participantIds }) {
-  try {
-    const data = await request(ENDPOINTS.CONVERSATIONS, {
-      method: "POST",
-      body: JSON.stringify({
-        type: "GROUP",
-        title: title,
-        participant_ids: participantIds.map((id) => Number(id) || 1),
-      }),
-    });
-    return data;
-  } catch (err) {
-    const all = read("zenvet_connections", []);
-    const newGroup = {
-      id: "group_" + Date.now(),
-      name: title,
-      specialty: `${participantIds.length + 1} Doctors Community`,
-      isGroup: true,
-    };
-    all.unshift(newGroup);
-    write("zenvet_connections", all);
-    return newGroup;
-  }
 }
 
 export const prepareAttachment = (file) =>

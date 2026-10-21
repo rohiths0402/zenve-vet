@@ -4,6 +4,7 @@ import { Check, CheckCheck, FileText, MessageCircle, Star } from "lucide-react";
 import Avatar from "./Avatar";
 import ChatMenu from "./ChatMenu";
 import Composer from "./Composer";
+import MessageText from "./MessageText";
 import { formatDay, formatSize, formatTime, sameDay } from "../utils/format";
 
 const getProfilePath = (doctor) => `/doctors/${doctor.id}`;
@@ -66,7 +67,7 @@ function Welcome({ doctor, canSend, onSend }) {
       <p>Say hello to {doctor.name}.</p>
       {canSend && (
         <button type="button" className="msg-cta" onClick={sayHello}>
-          👋 Say hello
+           Say hello
         </button>
       )}
     </div>
@@ -148,7 +149,11 @@ export default function ChatWindow({
               className={`msg-bubble ${m.from === "me" ? "is-me" : "is-them"}`}
             >
               {m.attachment && <Attachment item={m.attachment} />}
-              {m.text && <span>{m.text}</span>}
+              {m.text && (
+                <span>
+                  <MessageText text={m.text} />
+                </span>
+              )}
               <span className="msg-meta">
                 <time>{formatTime(m.createdAt)}</time>
                 {m.from === "me" && <Ticks status={m.status} />}
@@ -163,12 +168,6 @@ export default function ChatWindow({
             <i />
             <i />
           </div>
-        )}
-
-        {doctor.example && messages.length > 0 && (
-          <p className="msg-note">
-            This is a fictional example profile — nobody will reply.
-          </p>
         )}
 
         <div ref={endRef} />

@@ -1,25 +1,73 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { LogOut, Users } from "lucide-react";
+import { Link } from "react-router-dom";
+import { FileText, LogOut, MessageCircle, UserPlus, Users } from "lucide-react";
 import Avatar from "./Avatar";
 import Composer from "./Composer";
-import { formatDay, formatTime, sameDay } from "../utils/format";
+import CommunityInvite from "./CommunityInvite";
+import MessageText from "./MessageText";
+import { formatDay, formatSize, formatTime, sameDay } from "../utils/format";
 import "../community.css";
+
+const getProfilePath = (member) => `/doctors/${member.id}`;
+
+function Attachment({ item }) {
+  if (item.type === "image") {
+    return (
+      <span className="msg-image">
+        <img src={item.url} alt={item.name} />
+      </span>
+    );
+  }
+
+  return (
+    <a href={item.url} download={item.name} className="msg-file">
+      <FileText size={22} />
+      <span>
+        {item.name}
+        <small>{formatSize(item.size)}</small>
+      </span>
+    </a>
+  );
+}
+
+function MemberInfo({ member }) {
+  return (
+    <>
+      <Avatar doctor={member} size={34} />
+      <span>
+        <strong>
+          {member.name}
+          {member.isYou ? " (You)" : ""}
+        </strong>
+        <small>
+          {[member.specialty, member.city].filter(Boolean).join(" · ") ||
+            "Veterinarian"}
+        </small>
+      </span>
+    </>
+  );
+}
 
 export default function CommunityChat({
   community,
+  inviteLink,
+  connections = [],
   onJoin,
   onLeave,
   onSend,
+  onShare,
+  onMessageMember,
+  onNotice,
   onError,
 }) {
-  const [showMembers, setShowMembers] = useState(false);
+  const [panel, setPanel] = useState(null);
   const endRef = useRef(null);
 
   const {
     name = "Community",
     members = [],
-    memberCount = 1,
-    joined = true,
+    memberCount = 0,
+    joined = false,
     messages = [],
   } = community || {};
 
@@ -29,19 +77,20 @@ export default function CommunityChat({
     }
   }, [messages, joined]);
 
+  function togglePanel(key) {
+    setPanel((current) => (current === key ? null : key));
+  }
+
   function handleLeave() {
     if (window.confirm("Leave the community?")) {
-      setShowMembers(false);
-      if (onLeave) onLeave();
+      setPanel(null);
+      onLeave();
     }
   }
 
-  const safeMembers = Array.isArray(members) ? members : [];
-  const preview = safeMembers
+  const preview = members
     .slice(0, 3)
-    .map((member) =>
-      typeof member === "string" ? member : member?.name || "Doctor",
-    )
+    .map((member) => member.name || "Doctor")
     .join(", ");
 
   return (
@@ -61,11 +110,22 @@ export default function CommunityChat({
         </div>
 
         <div className="msg-chat-actions">
+          {joined && (
+            <button
+              type="button"
+              className={`msg-icon-btn ${panel === "invite" ? "is-on" : ""}`}
+              title="Invite"
+              onClick={() => togglePanel("invite")}
+            >
+              <UserPlus size={20} />
+            </button>
+          )}
+
           <button
             type="button"
-            className={`msg-icon-btn ${showMembers ? "is-on" : ""}`}
+            className={`msg-icon-btn ${panel === "members" ? "is-on" : ""}`}
             title="Members"
-            onClick={() => setShowMembers((previous) => !previous)}
+            onClick={() => togglePanel("members")}
           >
             <Users size={20} />
           </button>
@@ -83,51 +143,70 @@ export default function CommunityChat({
         </div>
       </header>
 
-      {showMembers && (
+      {panel === "members" && (
         <ul className="msg-community-members">
-          {safeMembers.map((member, idx) => {
-            const doc =
-              typeof member === "string" ? { id: idx, name: member } : member;
-            return (
-              <li key={doc.id ?? idx}>
-                <Avatar doctor={doc} size={34} />
-                <span>
-                  <strong>
-                    {doc.name}
-                    {doc.isYou ? " (You)" : ""}
-                  </strong>
-                  <small>
-                    {[doc.specialty, doc.city].filter(Boolean).join(" · ") ||
-                      "Veterinarian"}
-                  </small>
-                </span>
-              </li>
-            );
-          })}
+          {members.map((member, index) => (
+            <li key={member.id ?? index}>
+              {member.isYou ? (
+                <div className="msg-member-main">
+                  <MemberInfo member={member} />
+                </div>
+              ) : (
+                <Link
+                  to={getProfilePath(member)}
+                  className="msg-member-main"
+                  title="View profile"
+                >
+                  <MemberInfo member={member} />
+                </Link>
+              )}
+
+              {!member.isYou && (
+                <button
+                  type="button"
+                  className="msg-icon-btn"
+                  title={`Message ${member.name}`}
+                  onClick={() => onMessageMember(member)}
+                >
+                  <MessageCircle size={18} />
+                </button>
+              )}
+            </li>
+          ))}
         </ul>
+      )}
+
+      {panel === "invite" && joined && (
+        <CommunityInvite
+          link={inviteLink}
+          connections={connections}
+          onShare={onShare}
+          onNotice={onNotice}
+        />
       )}
 
       {joined ? (
         <>
           <div className="msg-body">
-            {messages.length === 0 ? (
-              <p
-                className="msg-note"
-                style={{ margin: "auto", color: "#6b6b64" }}
-              >
+            {messages.length === 0 && (
+              <p className="msg-community-empty">
                 Welcome to {name}! Be the first to start the conversation.
               </p>
-            ) : (
-              messages.map((message, index) => (
-                <Fragment key={message.id ?? index}>
-                  {(index === 0 ||
-                    !sameDay(
-                      messages[index - 1]?.createdAt,
-                      message.createdAt,
-                    )) && (
-                    <p className="msg-day">{formatDay(message.createdAt)}</p>
-                  )}
+            )}
 
+            {messages.map((message, index) => (
+              <Fragment key={message.id ?? index}>
+                {(index === 0 ||
+                  !sameDay(
+                    messages[index - 1]?.createdAt,
+                    message.createdAt,
+                  )) && (
+                  <p className="msg-day">{formatDay(message.createdAt)}</p>
+                )}
+
+                {message.system ? (
+                  <p className="msg-day">{message.text}</p>
+                ) : (
                   <div
                     className={`msg-bubble ${
                       message.from === "me" ? "is-me" : "is-them"
@@ -138,18 +217,21 @@ export default function CommunityChat({
                         {message.senderName}
                       </strong>
                     )}
-                    <span>{message.text}</span>
+                    {message.attachment && (
+                      <Attachment item={message.attachment} />
+                    )}
+                    {message.text && (
+                      <span>
+                        <MessageText text={message.text} />
+                      </span>
+                    )}
                     <span className="msg-meta">
                       <time>{formatTime(message.createdAt)}</time>
                     </span>
                   </div>
-                </Fragment>
-              ))
-            )}
-
-            <p className="msg-note">
-              Community conversation. Messages stay in this browser.
-            </p>
+                )}
+              </Fragment>
+            ))}
 
             <div ref={endRef} />
           </div>
@@ -160,13 +242,9 @@ export default function CommunityChat({
         <div className="msg-body">
           <div className="msg-community-join">
             <div className="msg-community-faces">
-              {safeMembers.slice(0, 4).map((member, idx) => {
-                const doc =
-                  typeof member === "string"
-                    ? { id: idx, name: member }
-                    : member;
-                return <Avatar key={doc.id ?? idx} doctor={doc} size={40} />;
-              })}
+              {members.slice(0, 4).map((member, index) => (
+                <Avatar key={member.id ?? index} doctor={member} size={40} />
+              ))}
             </div>
 
             <h3>{name}</h3>

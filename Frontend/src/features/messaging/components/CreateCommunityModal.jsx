@@ -9,7 +9,6 @@ export default function CreateCommunityModal({
   const [title, setTitle] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const toggleDoctor = (id) => {
     setSelectedIds((prev) =>
@@ -23,51 +22,30 @@ export default function CreateCommunityModal({
       setError("Please enter a community title.");
       return;
     }
-
-    try {
-      const defaultList = [
-        {
-          id: "1",
-          name: "Zenve Vet Community",
-          memberCount: 11,
-          messages: [
-            {
-              id: "m1",
-              from: "them",
-              senderName: "Dr. Vikram Singh",
-              text: "Sharing some equine rehab notes...",
-              createdAt: new Date().toISOString(),
-            },
-          ],
-        },
-      ];
-
-      const existingCommunities =
-        JSON.parse(localStorage.getItem("zenvet_communities")) || defaultList;
-
-      const newCommunity = {
-        id: "community_" + Date.now(),
-        name: title.trim(),
-        memberCount: selectedIds.length + 1,
-        messages: [
-          {
-            id: "m_welcome",
-            from: "me",
-            senderName: "You",
-            text: `Welcome to ${title.trim()}! Group created.`,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      };
-
-      const updatedList = [newCommunity, ...existingCommunities];
-      localStorage.setItem("zenvet_communities", JSON.stringify(updatedList));
-
-      onClose();
-      window.location.reload(); 
-    } catch (err) {
-      setError("Failed to create community.");
+    if (selectedIds.length === 0) {
+      setError("Please select at least one doctor to add.");
+      return;
     }
+
+    const selectedDoctors = connections
+      .filter((doc) => selectedIds.includes(String(doc.id)))
+      .map((doc) => ({
+        id: String(doc.id),
+        name: doc.name,
+        specialty: doc.specialty || "Veterinarian",
+        city: doc.city || "",
+        avatar: doc.avatar || null,
+      }));
+
+    if (onCreate) {
+      onCreate({
+        title: title.trim(),
+        participantIds: selectedIds,
+        selectedDoctors, 
+      });
+    }
+
+    onClose();
   };
 
   return (
@@ -90,7 +68,7 @@ export default function CreateCommunityModal({
             <label>Community Title</label>
             <input
               type="text"
-              placeholder="e.g. Small Animal Surgeons TN"
+              placeholder="e.g. SurgeryClub"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
@@ -104,12 +82,12 @@ export default function CreateCommunityModal({
                 <p className="msg-hint">No connections found to add.</p>
               ) : (
                 connections.map((doc) => {
-                  const isChecked = selectedIds.includes(doc.id);
+                  const isChecked = selectedIds.includes(String(doc.id));
                   return (
                     <div
                       key={doc.id}
                       className={`msg-modal-doc-item ${isChecked ? "is-selected" : ""}`}
-                      onClick={() => toggleDoctor(doc.id)}
+                      onClick={() => toggleDoctor(String(doc.id))}
                     >
                       <div className="msg-modal-doc-avatar">
                         {doc.name ? doc.name.charAt(0) : "D"}
@@ -138,12 +116,8 @@ export default function CreateCommunityModal({
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="msg-btn-primary"
-              disabled={loading}
-            >
-              {loading ? "Creating..." : "Create Community"}
+            <button type="submit" className="msg-btn-primary">
+              Create Community
             </button>
           </div>
         </form>

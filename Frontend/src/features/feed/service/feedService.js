@@ -11,22 +11,24 @@ function getToken() {
 async function apiRequest(path, options = {}) {
   const token = getToken();
 
+  const headers = {
+    Accept: "application/json",
+    ...(options.body instanceof FormData
+      ? {}
+      : options.body
+        ? { "Content-Type": "application/json" }
+        : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
   let response;
 
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
       credentials: "include",
-      headers: {
-        Accept: "application/json",
-        ...(options.body instanceof FormData
-          ? {}
-          : options.body
-            ? { "Content-Type": "application/json" }
-            : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
+      headers,
     });
   } catch {
     throw new Error(
@@ -34,28 +36,42 @@ async function apiRequest(path, options = {}) {
     );
   }
 
-  const data = await response.json().catch(() => null);
+  const responseText = await response.text();
+  let data = null;
+
+  if (responseText) {
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = responseText;
+    }
+  }
 
   if (!response.ok) {
-    const message =
-      data?.detail ||
-      data?.message ||
-      (data && typeof data === "object"
-        ? Object.entries(data)
-            .map(([key, value]) => {
-              const description = Array.isArray(value)
-                ? value.join(" ")
-                : typeof value === "string"
-                  ? value
-                  : JSON.stringify(value);
+    let message = "";
 
-              return `${key}: ${description}`;
-            })
-            .join(" ")
-        : null) ||
-      `API request failed (${response.status}).`;
+    if (typeof data === "string") {
+      message = data;
+    } else if (data && typeof data === "object") {
+      message =
+        data.detail ||
+        data.message ||
+        Object.entries(data)
+          .map(([key, value]) => {
+            const description = Array.isArray(value)
+              ? value.join(" ")
+              : typeof value === "string"
+                ? value
+                : JSON.stringify(value);
 
-    throw new Error(message);
+            return `${key}: ${description}`;
+          })
+          .join(" ");
+    }
+
+    throw new Error(
+      message || `API request failed (${response.status}).`
+    );
   }
 
   return data;
@@ -65,34 +81,52 @@ function extractList(data) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.results)) return data.results;
   if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.data?.results)) return data.data.results;
+  if (Array.isArray(data?.posts)) return data.posts;
 
   throw new Error("Unexpected response format from the API.");
 }
 
+// Fetch all feed posts.
 export async function fetchFeedPosts({ signal } = {}) {
   const data = await apiRequest("/posts/", { signal });
   return extractList(data);
 }
 
+// Fetch clinical case posts.
 export async function fetchClinicalCases({ signal } = {}) {
   const data = await apiRequest("/posts/?type=case", { signal });
   return extractList(data);
 }
 
+// Create a text, image, video, or clinical case post.
 export async function createFeedPost(payload) {
-  const body =
-    payload instanceof FormData
-      ? payload
-      : JSON.stringify(payload);
-
-  const data = await apiRequest("/posts/", {
+  return apiRequest("/posts/", {
     method: "POST",
-    body,
+    body:
+      payload instanceof FormData
+        ? payload
+        : JSON.stringify(payload),
   });
-
-  return data?.data ?? data;
 }
 
+// Upload an image or video before creating the post.
+export async function uploadPostMedia(file, mediaType) {
+  if (!(file instanceof File)) {
+    throw new Error("Please select a media file.");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("media_type", mediaType);
+
+  return apiRequest("/posts/upload-media/", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+// Create a clinical case with consent validation.
 export async function createClinicalCase({
   caseTitle,
   caseSummary,
@@ -100,8 +134,8 @@ export async function createClinicalCase({
   treatment = "",
   consentConfirmed,
 }) {
-  const title = caseTitle.trim();
-  const summary = caseSummary.trim();
+  const title = (caseTitle || "").trim();
+  const summary = (caseSummary || "").trim();
 
   if (!title || !summary) {
     throw new Error("Case title and summary are required.");
@@ -128,14 +162,24 @@ export async function createClinicalCase({
   });
 }
 
+// Like a post.
 export async function likeFeedPost(postId) {
+  if (postId === undefined || postId === null || postId === "") {
+    throw new Error("A valid post ID is required.");
+  }
+
   return apiRequest(
     `/posts/${encodeURIComponent(postId)}/like/`,
     { method: "POST" }
   );
 }
 
+// Unlike a post.
 export async function unlikeFeedPost(postId) {
+  if (postId === undefined || postId === null || postId === "") {
+    throw new Error("A valid post ID is required.");
+  }
+
   return apiRequest(
     `/posts/${encodeURIComponent(postId)}/like/`,
     { method: "DELETE" }

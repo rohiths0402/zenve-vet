@@ -1,5 +1,10 @@
+
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import {
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
 import {
   ArrowLeft,
   Bell,
@@ -11,6 +16,7 @@ import {
   ImagePlus,
   Link2,
   MapPin,
+  MessageCircle,
   Pencil,
   Plus,
   Share2,
@@ -35,6 +41,10 @@ function firstValue(...values) {
   )
 }
 
+function asArray(value) {
+  return Array.isArray(value) ? value : []
+}
+
 function getName(profile) {
   const user = profile?.user || {}
 
@@ -56,27 +66,57 @@ function getName(profile) {
 }
 
 function normalizeProfile(data) {
-  const profile = data?.profile || data?.user || data
-  const user = profile?.user || {}
+  const profile = data?.profile || data?.doctor_profile || data || {}
+  const user =
+    data?.user ||
+    profile?.user ||
+    data?.profile?.user ||
+    data?.doctor_profile?.user ||
+    {}
 
   return {
     ...profile,
-    id: firstValue(profile?.id, user.id, null),
-    full_name: getName(profile),
-    email: firstValue(profile?.email, user.email, ''),
-    username: firstValue(profile?.username, user.username, ''),
-    specialty: firstValue(profile?.specialty, ''),
-    city: firstValue(profile?.city, ''),
-    state: firstValue(profile?.state, ''),
-    about: firstValue(profile?.bio, profile?.about, ''),
-    profile_photo_url: firstValue(profile?.profile_photo_url, ''),
-    banner_image_url: firstValue(profile?.banner_image_url, ''),
+
+    // Keep the account ID distinct from the doctor-profile ID.
+    id: firstValue(profile?.id, data?.id, null),
+    user,
+    user_id: firstValue(
+      user?.id,
+      data?.user_id,
+      profile?.user_id,
+      null
+    ),
+
+    full_name: getName({ ...profile, user }),
+    professional_title: firstValue(
+      profile?.professional_title,
+      profile?.title,
+      profile?.job_title,
+      'Veterinarian'
+    ),
+    email: firstValue(profile?.email, user?.email, ''),
+    username: firstValue(profile?.username, user?.username, ''),
+    specialty: firstValue(profile?.specialty, user?.specialty, ''),
+    city: firstValue(profile?.city, user?.city, ''),
+    state: firstValue(profile?.state, user?.state, ''),
+    about: firstValue(profile?.bio, profile?.about, user?.bio, ''),
+    profile_photo_url: firstValue(
+      profile?.profile_photo_url,
+      user?.profile_photo_url,
+      ''
+    ),
+    banner_image_url: firstValue(
+      profile?.banner_image_url,
+      user?.banner_image_url,
+      ''
+    ),
     profile_picture: firstValue(
       profile?.profile_photo_url,
       profile?.profile_picture,
       profile?.profilePicture,
       profile?.avatar_url,
       profile?.avatar,
+      user?.profile_photo_url,
       ''
     ),
     banner: firstValue(
@@ -88,37 +128,53 @@ function normalizeProfile(data) {
     website: firstValue(profile?.website, ''),
     experience: firstValue(profile?.experience, ''),
     hospital: firstValue(profile?.hospital, profile?.clinic, ''),
-    qualifications: Array.isArray(profile?.qualifications)
-      ? profile.qualifications
-      : [],
-    interests: Array.isArray(profile?.interests)
-      ? profile.interests
-      : [],
-    clinics: Array.isArray(profile?.clinics) ? profile.clinics : [],
+    qualifications: asArray(profile?.qualifications),
+    interests: asArray(profile?.interests),
+    clinics: asArray(profile?.clinics),
     connections_count: Number(profile?.connections_count ?? 0),
-    posts: Array.isArray(profile?.posts) ? profile.posts : [],
-    cases: Array.isArray(profile?.cases) ? profile.cases : [],
-    videos: Array.isArray(profile?.videos) ? profile.videos : [],
-    is_verified: Boolean(profile?.is_verified ?? profile?.isVerified),
+    posts: asArray(profile?.posts),
+    cases: asArray(profile?.cases),
+    videos: asArray(profile?.videos),
+    connections: asArray(profile?.connections),
+    is_verified: Boolean(
+      profile?.is_verified ?? profile?.isVerified
+    ),
   }
+}
+
+function extractList(data) {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.results)) return data.results
+  if (Array.isArray(data?.data)) return data.data
+  return []
 }
 
 export default function DoctorProfilePage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [doctor, setDoctor] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [activeTab, setActiveTab] = useState('About')
+  const [connecting, setConnecting] = useState(false)
+  const [connectionRequested, setConnectionRequested] = useState(false)
+  const [openingMessage, setOpeningMessage] = useState(false)
+  const [contentLoading, setContentLoading] = useState(false)
+  const [contentError, setContentError] = useState('')
 
   const [editOpen, setEditOpen] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [editError, setEditError] = useState('')
 
   const [editForm, setEditForm] = useState({
+    full_name: '',
+    professional_title: '',
     city: '',
+    experience: '',
+    qualifications: '',
     state: '',
     specialty: '',
     bio: '',
@@ -137,12 +193,15 @@ export default function DoctorProfilePage() {
 
   const isOwnProfile = !id || id === 'me'
 
+  // Load profile and the author's published content.
   useEffect(() => {
     let cancelled = false
 
     async function loadProfile() {
       setLoading(true)
       setError('')
+      setContentError('')
+      setContentLoading(false)
 
       try {
         const token = getAccessToken()
@@ -166,12 +225,74 @@ export default function DoctorProfilePage() {
 
         if (!response.ok) {
           throw new Error(
-            data.detail || `Unable to load profile (${response.status}).`
+            data.detail ||
+              `Unable to load profile (${response.status}).`
           )
         }
 
-        if (!cancelled) {
-          setDoctor(normalizeProfile(data))
+        if (cancelled) return
+
+        const normalized = normalizeProfile(data)
+        setDoctor(normalized)
+
+        const username = normalized.username || (!isOwnProfile ? id : '')
+
+        if (!username) return
+
+        setContentLoading(true)
+
+        try {
+          const types = ['post', 'case', 'video']
+
+          const responses = await Promise.all(
+            types.map((type) =>
+              fetch(
+                `${API_BASE_URL}/posts/?author=${encodeURIComponent(username)}&type=${encodeURIComponent(type)}`,
+                {
+                  headers: {
+                    Accept: 'application/json',
+                    ...(token
+                      ? { Authorization: `Bearer ${token}` }
+                      : {}),
+                  },
+                }
+              )
+            )
+          )
+
+          const failed = responses.find((item) => !item.ok)
+
+          if (failed) {
+            throw new Error(
+              `Unable to load profile content (HTTP ${failed.status}).`
+            )
+          }
+
+          const contentData = await Promise.all(
+            responses.map((item) => item.json())
+          )
+
+          if (!cancelled) {
+            setDoctor((current) => {
+              if (!current) return current
+
+              return {
+                ...current,
+                posts: extractList(contentData[0]),
+                cases: extractList(contentData[1]),
+                videos: extractList(contentData[2]),
+              }
+            })
+          }
+        } catch (contentErr) {
+          if (!cancelled) {
+            setContentError(
+              contentErr.message ||
+                'Unable to load posts, cases and videos.'
+            )
+          }
+        } finally {
+          if (!cancelled) setContentLoading(false)
         }
       } catch (err) {
         if (!cancelled) {
@@ -189,6 +310,7 @@ export default function DoctorProfilePage() {
     }
   }, [id, isOwnProfile])
 
+  // Every array is guarded so incomplete API data cannot crash rendering.
   const completionItems = useMemo(() => {
     if (!doctor) return []
 
@@ -197,17 +319,26 @@ export default function DoctorProfilePage() {
         label: 'Profile photo',
         complete: Boolean(doctor.profile_picture),
       },
-      { label: 'Story (bio)', complete: Boolean(doctor.about) },
-      { label: 'Website', complete: Boolean(doctor.website) },
+      {
+        label: 'Story (bio)',
+        complete: Boolean(doctor.about),
+      },
+      {
+        label: 'Website',
+        complete: Boolean(doctor.website),
+      },
       {
         label: 'Location',
         complete: Boolean(doctor.city && doctor.state),
       },
       {
         label: 'Qualifications',
-        complete: doctor.qualifications.length > 0,
+        complete: asArray(doctor.qualifications).length > 0,
       },
-      { label: 'Verified badge', complete: doctor.is_verified },
+      {
+        label: 'Verified badge',
+        complete: Boolean(doctor.is_verified),
+      },
     ]
   }, [doctor])
 
@@ -224,18 +355,21 @@ export default function DoctorProfilePage() {
   }
 
   function openEditProfile() {
+    if (!doctor) return
+
     setEditForm({
+      full_name: doctor.full_name || '',
+      professional_title: doctor.professional_title || 'Veterinarian',
       city: doctor.city || '',
+      experience: doctor.experience || '',
+      qualifications: asArray(doctor.qualifications).join(', '),
       state: doctor.state || '',
       specialty: doctor.specialty || '',
       bio: doctor.about || '',
       website: doctor.website || '',
     })
 
-    setImageFiles({
-      profile: null,
-      banner: null,
-    })
+    setImageFiles({ profile: null, banner: null })
 
     setImagePreviews({
       profile: doctor.profile_picture || '',
@@ -245,6 +379,32 @@ export default function DoctorProfilePage() {
     setEditError('')
     setEditOpen(true)
   }
+
+  // Handle the profile-completion prompt from Topbar.
+  useEffect(() => {
+    if (
+      searchParams.get('completeProfile') !== '1' ||
+      loading ||
+      !doctor ||
+      !isOwnProfile
+    ) {
+      return
+    }
+
+    const profileIsIncomplete = Boolean(
+      !doctor.specialty?.trim() ||
+        !doctor.city?.trim() ||
+        !doctor.state?.trim() ||
+        !doctor.about?.trim() ||
+        !doctor.website?.trim()
+    )
+
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('completeProfile')
+    setSearchParams(nextParams, { replace: true })
+
+    if (profileIsIncomplete) openEditProfile()
+  }, [searchParams, setSearchParams, loading, doctor, isOwnProfile])
 
   function handleEditChange(event) {
     const { name, value } = event.target
@@ -283,10 +443,18 @@ export default function DoctorProfilePage() {
       [type]: file,
     }))
 
-    setImagePreviews((current) => ({
-      ...current,
-      [type]: URL.createObjectURL(file),
-    }))
+    setImagePreviews((current) => {
+      const previous = current[type]
+
+      if (previous?.startsWith('blob:')) {
+        URL.revokeObjectURL(previous)
+      }
+
+      return {
+        ...current,
+        [type]: URL.createObjectURL(file),
+      }
+    })
   }
 
   async function saveProfile(event) {
@@ -303,33 +471,50 @@ export default function DoctorProfilePage() {
     setEditError('')
 
     try {
-      /*
-       * The existing profile API accepts JSON and image URLs.
-       * Selected files need a multipart upload endpoint before
-       * they can be permanently saved.
-       */
-      if (imageFiles.profile || imageFiles.banner) {
-        setEditError(
-          'Image previews work, but file uploads are not connected to the backend yet. Save your text changes separately.'
-        )
-        setSavingProfile(false)
-        return
+      const hasImages = Boolean(imageFiles.profile || imageFiles.banner)
+
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      }
+
+      const fields = {
+        full_name: editForm.full_name.trim(),
+        professional_title: editForm.professional_title.trim(),
+        city: editForm.city.trim(),
+        state: editForm.state.trim(),
+        specialty: editForm.specialty.trim(),
+        experience: editForm.experience.trim(),
+        qualifications: editForm.qualifications.trim(),
+        bio: editForm.bio.trim(),
+        website: editForm.website.trim(),
+      }
+
+      let body
+
+      if (hasImages) {
+        body = new FormData()
+
+        Object.entries(fields).forEach(([key, value]) => {
+          body.append(key, value)
+        })
+
+        if (imageFiles.profile) {
+          body.append('profile_photo_file', imageFiles.profile)
+        }
+
+        if (imageFiles.banner) {
+          body.append('banner_image_file', imageFiles.banner)
+        }
+      } else {
+        headers['Content-Type'] = 'application/json'
+        body = JSON.stringify(fields)
       }
 
       const response = await fetch(`${API_BASE_URL}/accounts/profile/`, {
         method: 'PATCH',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          city: editForm.city.trim(),
-          state: editForm.state.trim(),
-          specialty: editForm.specialty.trim(),
-          bio: editForm.bio.trim(),
-          website: editForm.website.trim(),
-        }),
+        headers,
+        body,
       })
 
       const data = await response.json().catch(() => ({}))
@@ -339,7 +524,7 @@ export default function DoctorProfilePage() {
           .map(([field, errors]) => {
             const message = Array.isArray(errors)
               ? errors.join(', ')
-              : errors
+              : String(errors)
 
             return `${field}: ${message}`
           })
@@ -352,19 +537,173 @@ export default function DoctorProfilePage() {
         )
       }
 
+      if (data.profile_photo_url) {
+        localStorage.setItem(
+          'zenveProfilePhotoUrl',
+          data.profile_photo_url
+        )
+      }
+
+      window.dispatchEvent(new Event('zenve-profile-updated'))
+
       setDoctor((current) =>
-        normalizeProfile({
-          ...current,
-          ...data,
-        })
+        normalizeProfile({ ...current, ...data })
       )
 
+      setImageFiles({ profile: null, banner: null })
       setEditOpen(false)
       showNotice('Profile updated successfully.')
     } catch (err) {
       setEditError(err.message || 'Unable to update your profile.')
     } finally {
       setSavingProfile(false)
+    }
+  }
+
+  async function handleConnect() {
+    const token = getAccessToken()
+
+    if (!token) {
+      showNotice('Please sign in to send a connection request.')
+      return
+    }
+
+    const username = doctor?.username || (!isOwnProfile ? id : '')
+
+    if (!username) {
+      showNotice('This doctor profile does not have a username.')
+      return
+    }
+
+    setConnecting(true)
+    setNotice('')
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/connections/requests/`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ username }),
+        }
+      )
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        const detail =
+          data.detail ||
+          data.non_field_errors?.join?.(', ') ||
+          Object.entries(data)
+            .map(([key, value]) =>
+              `${key}: ${Array.isArray(value) ? value.join(', ') : value}`
+            )
+            .join(' ')
+
+        throw new Error(
+          detail ||
+            `Connection request failed (HTTP ${response.status}).`
+        )
+      }
+
+      setConnectionRequested(true)
+
+      showNotice(
+        data.detail ||
+          data.message ||
+          'Connection request sent successfully.'
+      )
+    } catch (err) {
+      showNotice(err.message || 'Unable to send connection request.')
+    } finally {
+      setConnecting(false)
+    }
+  }
+
+  async function handleMessage() {
+    const token = getAccessToken()
+
+    if (!token) {
+      showNotice('Please sign in to message this doctor.')
+      return
+    }
+
+    // recipientId must be the Django User ID, not a separate profile ID.
+    const recipientId =
+      doctor?.user?.id ??
+      doctor?.user_id ??
+      null
+
+    if (!recipientId) {
+      console.error('Profile data missing recipient account ID:', doctor)
+      showNotice(
+        'The profile API does not provide this doctor’s account ID.'
+      )
+      return
+    }
+
+    setOpeningMessage(true)
+    setNotice('')
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/messaging/conversations/`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            recipientId: Number(recipientId),
+          }),
+        }
+      )
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        const detail =
+          data.detail ||
+          data.non_field_errors?.join?.(', ') ||
+          Object.entries(data)
+            .map(([key, value]) =>
+              `${key}: ${Array.isArray(value) ? value.join(', ') : value}`
+            )
+            .join(' ')
+
+        throw new Error(
+          detail ||
+            `Unable to open conversation (HTTP ${response.status}).`
+        )
+      }
+
+      const conversationId =
+        data.id ??
+        data.conversation_id ??
+        data.conversation?.id ??
+        data.data?.id
+
+      if (!conversationId) {
+        console.error('Conversation API response:', data)
+        throw new Error(
+          'The messaging API did not return a conversation ID.'
+        )
+      }
+
+      // Existing MessagesPage reads the conversation from ?to=.
+      navigate(`/messages?to=${encodeURIComponent(conversationId)}`)
+    } catch (err) {
+      showNotice(
+        err.message || 'Unable to open a conversation with this doctor.'
+      )
+    } finally {
+      setOpeningMessage(false)
     }
   }
 
@@ -394,6 +733,7 @@ export default function DoctorProfilePage() {
         <section className="doctor-profile-state">
           <h1>Unable to load profile</h1>
           <p>{error || 'No profile data was returned by the server.'}</p>
+
           <button
             type="button"
             className="dp-button dp-button--primary"
@@ -406,7 +746,7 @@ export default function DoctorProfilePage() {
     )
   }
 
-  const initials = doctor.full_name
+  const initials = String(doctor.full_name || 'Veterinary professional')
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -416,23 +756,52 @@ export default function DoctorProfilePage() {
   const location = [doctor.city, doctor.state].filter(Boolean).join(', ')
 
   function renderContent() {
+    const posts = asArray(doctor?.posts)
+    const cases = asArray(doctor?.cases)
+    const videos = asArray(doctor?.videos)
+    const connections = asArray(doctor?.connections)
+    const clinics = asArray(doctor?.clinics)
+
     if (activeTab === 'Posts') {
       return (
         <section className="dp-section">
           <p className="dp-eyebrow">COMMUNITY JOURNAL</p>
           <h2>Perspectives from practice.</h2>
 
-          {doctor.posts.length ? (
-            doctor.posts.map((post, index) => (
-              <article className="dp-content-item" key={post.id || index}>
-                <h3>{post.title || 'Community post'}</h3>
-                <p>{post.content || post.body || post.text || ''}</p>
-              </article>
-            ))
-          ) : (
+          {contentLoading && (
+            <p className="dp-muted">Loading posts…</p>
+          )}
+
+          {contentError && (
+            <p className="dp-muted" role="alert">{contentError}</p>
+          )}
+
+          {!contentLoading && posts.length === 0 ? (
             <p className="dp-muted">
               No posts are available for this profile yet.
             </p>
+          ) : (
+            posts.map((post, index) => (
+              <article className="dp-content-item" key={post.id || index}>
+                <h3>{post.title || 'Community post'}</h3>
+                <p>
+                  {post.caption ||
+                    post.content ||
+                    post.body ||
+                    post.text ||
+                    ''}
+                </p>
+
+                {(post.media_url || post.thumbnail_url) && (
+                  <img
+                    className="dp-content-media"
+                    src={post.media_url || post.thumbnail_url}
+                    alt={post.title || 'Post media'}
+                    loading="lazy"
+                  />
+                )}
+              </article>
+            ))
           )}
         </section>
       )
@@ -444,17 +813,40 @@ export default function DoctorProfilePage() {
           <p className="dp-eyebrow">CLINICAL KNOWLEDGE</p>
           <h2>Cases from practice.</h2>
 
-          {doctor.cases.length ? (
-            doctor.cases.map((item, index) => (
-              <article className="dp-content-item" key={item.id || index}>
-                <h3>{item.title || item.name || 'Clinical case'}</h3>
-                <p>{item.description || item.summary || ''}</p>
-              </article>
-            ))
-          ) : (
+          {contentLoading && (
+            <p className="dp-muted">Loading clinical cases…</p>
+          )}
+
+          {contentError && (
+            <p className="dp-muted" role="alert">{contentError}</p>
+          )}
+
+          {!contentLoading && cases.length === 0 ? (
             <p className="dp-muted">
               No clinical cases have been shared yet.
             </p>
+          ) : (
+            cases.map((item, index) => (
+              <article className="dp-content-item" key={item.id || index}>
+                <h3>{item.title || item.name || 'Clinical case'}</h3>
+                <p>
+                  {item.caption ||
+                    item.description ||
+                    item.summary ||
+                    item.content ||
+                    ''}
+                </p>
+
+                {(item.media_url || item.thumbnail_url) && (
+                  <img
+                    className="dp-content-media"
+                    src={item.media_url || item.thumbnail_url}
+                    alt={item.title || 'Clinical case media'}
+                    loading="lazy"
+                  />
+                )}
+              </article>
+            ))
           )}
         </section>
       )
@@ -466,11 +858,43 @@ export default function DoctorProfilePage() {
           <p className="dp-eyebrow">WATCH AND LEARN</p>
           <h2>Videos from the community.</h2>
 
-          {doctor.videos.length ? (
-            doctor.videos.map((video, index) => (
+          {contentLoading && (
+            <p className="dp-muted">Loading videos…</p>
+          )}
+
+          {contentError && (
+            <p className="dp-muted" role="alert">{contentError}</p>
+          )}
+
+          {!contentLoading && videos.length === 0 ? (
+            <p className="dp-muted">
+              No videos are available for this profile yet.
+            </p>
+          ) : (
+            videos.map((video, index) => (
               <article className="dp-content-item" key={video.id || index}>
                 <h3>{video.title || 'Professional video'}</h3>
-                <p>{video.description || ''}</p>
+                <p>
+                  {video.caption ||
+                    video.description ||
+                    video.content ||
+                    ''}
+                </p>
+
+                {(video.media_url || video.thumbnail_url) && (
+                  <a
+                    href={video.media_url || video.thumbnail_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <img
+                      className="dp-content-media"
+                      src={video.thumbnail_url || video.media_url}
+                      alt={video.title || 'Video thumbnail'}
+                      loading="lazy"
+                    />
+                  </a>
+                )}
 
                 {video.url && (
                   <a href={video.url} target="_blank" rel="noreferrer">
@@ -479,10 +903,92 @@ export default function DoctorProfilePage() {
                 )}
               </article>
             ))
+          )}
+        </section>
+      )
+    }
+
+    if (activeTab === 'Connections') {
+      return (
+        <section className="dp-section dp-connections-section">
+          <p className="dp-eyebrow">PROFESSIONAL NETWORK</p>
+          <h2>{doctor.full_name}'s connections</h2>
+
+          {connections.length > 0 ? (
+            <div className="dp-connections-grid">
+              {connections.map((connection, index) => {
+                const person =
+                  connection.doctor ||
+                  connection.profile ||
+                  connection.user ||
+                  connection
+
+                const name =
+                  person.full_name ||
+                  person.fullName ||
+                  person.name ||
+                  person.username ||
+                  'Veterinary Doctor'
+
+                const image =
+                  person.profile_photo_url ||
+                  person.profile_picture ||
+                  person.avatar ||
+                  person.profile_image ||
+                  ''
+
+                const personId =
+                  person.username || person.id || person.pk
+
+                return (
+                  <article
+                    className="dp-connection-card"
+                    key={personId || index}
+                  >
+                    <div className="dp-connection-avatar">
+                      {image ? (
+                        <img src={image} alt={name} />
+                      ) : (
+                        <span>{name.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+
+                    <div className="dp-connection-info">
+                      <h3>{name}</h3>
+                      <p>
+                        {person.specialty ||
+                          person.specialization ||
+                          'Veterinary Professional'}
+                      </p>
+                      <p className="dp-connection-location">
+                        {[person.city, person.state]
+                          .filter(Boolean)
+                          .join(', ')}
+                      </p>
+                    </div>
+
+                    {personId && (
+                      <button
+                        type="button"
+                        className="dp-button"
+                        onClick={() =>
+                          navigate(
+                            `/doctors/${encodeURIComponent(personId)}`
+                          )
+                        }
+                      >
+                        View profile
+                      </button>
+                    )}
+                  </article>
+                )
+              })}
+            </div>
           ) : (
-            <p className="dp-muted">
-              No videos are available for this profile yet.
-            </p>
+            <div className="dp-empty-state">
+              <Users size={28} />
+              <h3>No connections yet</h3>
+            </div>
           )}
         </section>
       )
@@ -549,9 +1055,9 @@ export default function DoctorProfilePage() {
           <p className="dp-eyebrow">MY CLINICS</p>
           <h2>Where I practise.</h2>
 
-          {doctor.clinics.length ? (
+          {clinics.length > 0 ? (
             <div className="dp-clinic-grid">
-              {doctor.clinics.map((clinic, index) => (
+              {clinics.map((clinic, index) => (
                 <article
                   className="dp-clinic-card"
                   key={clinic.id || index}
@@ -684,37 +1190,40 @@ export default function DoctorProfilePage() {
               >
                 <BadgeCheck size={17} /> Get verified
               </button>
-
-              <button
-                type="button"
-                className="dp-button"
-                onClick={openEditProfile}
-              >
-                <Camera size={16} /> Banner & journey
-              </button>
-
-              <button
-                type="button"
-                className="dp-button"
-                onClick={() =>
-                  showNotice('Phone alerts are not configured yet.')
-                }
-              >
-                <Bell size={16} /> Phone alerts
-              </button>
             </>
           ) : (
-            <button
-              type="button"
-              className="dp-button dp-button--primary"
-              onClick={() =>
-                showNotice(
-                  'Connection requests need to be connected to the connections API.'
-                )
-              }
-            >
-              <Users size={16} /> Connect
-            </button>
+            <>
+              <button
+                type="button"
+                className={`dp-button dp-button--primary${
+                  connectionRequested ? ' dp-button--requested' : ''
+                }`}
+                onClick={handleConnect}
+                disabled={connecting || connectionRequested}
+                aria-live="polite"
+              >
+                {connectionRequested ? (
+                  <Check size={16} />
+                ) : (
+                  <Users size={16} />
+                )}
+                {connecting
+                  ? 'Sending…'
+                  : connectionRequested
+                    ? 'Requested'
+                    : 'Connect'}
+              </button>
+
+              <button
+                type="button"
+                className="dp-button dp-button--message"
+                onClick={handleMessage}
+                disabled={openingMessage}
+              >
+                <MessageCircle size={16} />
+                {openingMessage ? 'Opening…' : 'Message'}
+              </button>
+            </>
           )}
 
           <button
@@ -741,7 +1250,7 @@ export default function DoctorProfilePage() {
       )}
 
       <nav className="dp-tabs" aria-label="Profile sections">
-        {['About', 'Posts', 'Cases', 'Videos'].map((tab) => (
+        {['About', 'Posts', 'Cases', 'Videos', 'Connections'].map((tab) => (
           <button
             key={tab}
             type="button"
@@ -780,7 +1289,9 @@ export default function DoctorProfilePage() {
               <Users />
               <div>
                 <span>COMMUNITY</span>
-                <strong>{doctor.connections_count} connections</strong>
+                <strong>
+                  {Number(doctor.connections_count || 0)} connections
+                </strong>
               </div>
             </div>
 
@@ -790,7 +1301,11 @@ export default function DoctorProfilePage() {
                 <span>PROFESSIONAL PRESENCE</span>
 
                 {doctor.website ? (
-                  <a href={doctor.website} target="_blank" rel="noreferrer">
+                  <a
+                    href={doctor.website}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     {doctor.website}
                     <Link2 size={13} />
                   </a>
@@ -842,10 +1357,13 @@ export default function DoctorProfilePage() {
             aria-modal="true"
             aria-labelledby="dp-edit-title"
           >
-            <div className="dp-edit-heading">
+            <header className="dp-edit-heading">
               <div>
-                <p className="dp-eyebrow">YOUR PROFESSIONAL PAGE</p>
+                <p className="dp-eyebrow">MAKE IT YOURS</p>
                 <h2 id="dp-edit-title">Edit profile</h2>
+                <p className="dp-edit-subtitle">
+                  Update your profile photos, professional details and clinic location.
+                </p>
               </div>
 
               <button
@@ -857,102 +1375,182 @@ export default function DoctorProfilePage() {
               >
                 ×
               </button>
-            </div>
+            </header>
 
-            <form onSubmit={saveProfile}>
-              <div className="dp-edit-grid">
-                <label>
-                  Specialty
-                  <input
-                    name="specialty"
-                    value={editForm.specialty}
-                    onChange={handleEditChange}
-                    maxLength={120}
-                    placeholder="e.g. Small animal surgery"
-                  />
-                </label>
+            <form className="dp-edit-form" onSubmit={saveProfile}>
+              <section className="dp-edit-section">
+                <h3>Profile images</h3>
 
-                <label>
-                  City
-                  <input
-                    name="city"
-                    value={editForm.city}
-                    onChange={handleEditChange}
-                    maxLength={120}
-                    placeholder="Your city"
-                  />
-                </label>
+                <div className="dp-upload-grid">
+                  <label className="dp-upload-card">
+                    <span className="dp-upload-icon">
+                      <ImagePlus size={26} />
+                    </span>
 
-                <label>
-                  State
-                  <input
-                    name="state"
-                    value={editForm.state}
-                    onChange={handleEditChange}
-                    maxLength={120}
-                    placeholder="Your state"
-                  />
-                </label>
+                    <span className="dp-upload-copy">
+                      <strong>Profile image</strong>
+                      <small>JPG, PNG or WebP</small>
+                      <span>
+                        <Camera size={15} /> Upload image
+                      </span>
+                    </span>
 
-                <label>
-                  Website
-                  <input
-                    name="website"
-                    type="url"
-                    value={editForm.website}
-                    onChange={handleEditChange}
-                    placeholder="https://example.com"
-                  />
-                </label>
-
-                <label className="dp-edit-full">
-                  Professional bio
-                  <textarea
-                    name="bio"
-                    value={editForm.bio}
-                    onChange={handleEditChange}
-                    rows={5}
-                    maxLength={5000}
-                    placeholder="Tell the community about your practice and interests."
-                  />
-                </label>
-
-                <label className="dp-edit-full">
-                  Profile photo
-                  <input
-                    name="profile_photo_file"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                  />
-
-                  {imagePreviews.profile && (
-                    <img
-                      src={imagePreviews.profile}
-                      alt="Profile preview"
-                      className="dp-image-preview dp-image-preview--profile"
+                    <input
+                      name="profile_photo_file"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleImageChange}
                     />
-                  )}
-                </label>
 
-                <label className="dp-edit-full">
-                  Banner image
-                  <input
-                    name="banner_image_file"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                  />
+                    {imagePreviews.profile && (
+                      <img
+                        src={imagePreviews.profile}
+                        alt="Profile preview"
+                        className="dp-image-preview dp-image-preview--profile"
+                      />
+                    )}
+                  </label>
 
-                  {imagePreviews.banner && (
-                    <img
-                      src={imagePreviews.banner}
-                      alt="Banner preview"
-                      className="dp-image-preview dp-image-preview--banner"
+                  <label className="dp-upload-card">
+                    <span className="dp-upload-icon">
+                      <ImagePlus size={26} />
+                    </span>
+
+                    <span className="dp-upload-copy">
+                      <strong>Banner image</strong>
+                      <small>Recommended: wide landscape image</small>
+                      <span>
+                        <Camera size={15} /> Upload image
+                      </span>
+                    </span>
+
+                    <input
+                      name="banner_image_file"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleImageChange}
                     />
-                  )}
-                </label>
-              </div>
+
+                    {imagePreviews.banner && (
+                      <img
+                        src={imagePreviews.banner}
+                        alt="Banner preview"
+                        className="dp-image-preview dp-image-preview--banner"
+                      />
+                    )}
+                  </label>
+                </div>
+
+                <p className="dp-upload-help">
+                  Choose images up to 5 MB each. Selected images preview here before saving.
+                </p>
+              </section>
+
+              <section className="dp-edit-section">
+                <h3>Professional details</h3>
+
+                <div className="dp-edit-grid">
+                  <label>
+                    Full name
+                    <input
+                      name="full_name"
+                      value={editForm.full_name}
+                      onChange={handleEditChange}
+                      maxLength={150}
+                      placeholder="Your name"
+                    />
+                  </label>
+
+                  <label>
+                    Professional title
+                    <input
+                      name="professional_title"
+                      value={editForm.professional_title}
+                      onChange={handleEditChange}
+                      maxLength={120}
+                      placeholder="Veterinarian"
+                    />
+                  </label>
+
+                  <label>
+                    City
+                    <input
+                      name="city"
+                      value={editForm.city}
+                      onChange={handleEditChange}
+                      maxLength={120}
+                      placeholder="City"
+                    />
+                  </label>
+
+                  <label>
+                    State
+                    <input
+                      name="state"
+                      value={editForm.state}
+                      onChange={handleEditChange}
+                      maxLength={120}
+                      placeholder="State"
+                    />
+                  </label>
+
+                  <label>
+                    Specialty
+                    <input
+                      name="specialty"
+                      value={editForm.specialty}
+                      onChange={handleEditChange}
+                      maxLength={120}
+                      placeholder="e.g. Small animal surgery"
+                    />
+                  </label>
+
+                  <label>
+                    Experience
+                    <input
+                      name="experience"
+                      value={editForm.experience}
+                      onChange={handleEditChange}
+                      maxLength={80}
+                      placeholder="e.g. 5 years"
+                    />
+                  </label>
+
+                  <label className="dp-edit-full">
+                    Qualifications
+                    <input
+                      name="qualifications"
+                      value={editForm.qualifications}
+                      onChange={handleEditChange}
+                      maxLength={500}
+                      placeholder="BVSc, MVSc..."
+                    />
+                  </label>
+
+                  <label className="dp-edit-full">
+                    About you
+                    <textarea
+                      name="bio"
+                      value={editForm.bio}
+                      onChange={handleEditChange}
+                      rows={4}
+                      maxLength={5000}
+                      placeholder="Tell the community about your practice and interests."
+                    />
+                  </label>
+
+                  <label className="dp-edit-full">
+                    Website
+                    <input
+                      name="website"
+                      type="url"
+                      value={editForm.website}
+                      onChange={handleEditChange}
+                      placeholder="https://example.com"
+                    />
+                  </label>
+                </div>
+              </section>
 
               {editError && (
                 <p className="dp-edit-error" role="alert">
@@ -960,7 +1558,7 @@ export default function DoctorProfilePage() {
                 </p>
               )}
 
-              <div className="dp-edit-actions">
+              <footer className="dp-edit-actions">
                 <button
                   type="button"
                   className="dp-button"
@@ -975,9 +1573,15 @@ export default function DoctorProfilePage() {
                   className="dp-button dp-button--primary"
                   disabled={savingProfile}
                 >
-                  {savingProfile ? 'Saving…' : 'Save changes'}
+                  {savingProfile ? (
+                    'Saving…'
+                  ) : (
+                    <>
+                      <Check size={16} /> Save changes
+                    </>
+                  )}
                 </button>
-              </div>
+              </footer>
             </form>
           </section>
         </div>

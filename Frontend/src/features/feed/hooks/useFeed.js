@@ -1,15 +1,15 @@
 
-import { useCallback, useEffect, useState } from 'react';
-import { fetchFeedPosts } from '../service/feedService.js';
+import { useCallback, useEffect, useState } from "react";
+import { fetchFeedPosts } from "../service/feedService.js";
 
 export default function useFeed() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const loadFeed = useCallback(async (signal) => {
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const data = await fetchFeedPosts({ signal });
@@ -18,8 +18,8 @@ export default function useFeed() {
         setPosts(data);
       }
     } catch (err) {
-      if (err.name !== 'AbortError' && !signal?.aborted) {
-        setError(err.message || 'Failed to load feed posts.');
+      if (err.name !== "AbortError" && !signal?.aborted) {
+        setError(err.message || "Failed to load feed posts.");
       }
     } finally {
       if (!signal?.aborted) {

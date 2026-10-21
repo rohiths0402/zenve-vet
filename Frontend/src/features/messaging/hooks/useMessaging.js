@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import useChatSocket from "./useChatSocket";
-import useCommunity from "./useCommunity";
 import {
   DEFAULT_META,
   deleteConversation,
@@ -31,7 +30,7 @@ export default function useMessaging() {
   const timer = useRef(null);
   const typingTimers = useRef({});
   const messageRequest = useRef(0);
-  const isCommunity = params.get("community") === "1";
+  const isCommunity = Boolean(params.get("community"));
   const activeId = isCommunity ? null : params.get("to");
   const activeRef = useRef(activeId);
 
@@ -45,12 +44,10 @@ export default function useMessaging() {
     timer.current = setTimeout(() => setNotice(""), 3500);
   }, []);
 
-  const community = useCommunity(flash);
-
   const refresh = useCallback(async () => {
     try {
       const rows = await getConversations();
-      setConversations(rows);
+      setConversations(rows || []);
       return rows;
     } catch (error) {
       flash(error.message || "Could not load conversations.");
@@ -420,76 +417,55 @@ export default function useMessaging() {
 
       switch (key) {
         case "star": {
-          await patch(id, {
-            starred: !activeMeta.starred,
-          });
+          await patch(id, { starred: !activeMeta.starred });
           break;
         }
-
         case "mute": {
           const next = !activeMeta.muted;
-
           if (await patch(id, { muted: next })) {
             flash(next ? "Conversation muted." : "Conversation unmuted.");
           }
           break;
         }
-
         case "unread": {
           if (await patch(id, { unread: 1 })) {
             setParams({});
           }
           break;
         }
-
         case "archive": {
           const next = !activeMeta.archived;
-
           if (await patch(id, { archived: next })) {
             flash(next ? "Conversation archived." : "Conversation unarchived.");
-
             if (next) setParams({});
           }
           break;
         }
-
         case "block": {
-          if (!activeMeta.blocked && !window.confirm(`Block ${active.name}?`)) {
+          if (!activeMeta.blocked && !window.confirm(`Block ${active.name}?`))
             return;
-          }
-
-          if (
-            await patch(id, {
-              blocked: !activeMeta.blocked,
-            })
-          ) {
+          if (await patch(id, { blocked: !activeMeta.blocked })) {
             flash(activeMeta.blocked ? "Doctor unblocked." : "Doctor blocked.");
           }
           break;
         }
-
         case "report": {
           if (
             !window.confirm(
               `Report ${active.name} for inappropriate behaviour?`,
             )
-          ) {
+          )
             return;
-          }
-
           if (await patch(id, { reported: true })) {
             flash("Reported. Thanks for letting us know.");
           }
           break;
         }
-
         case "delete": {
           if (
             !window.confirm("Delete this conversation? This cannot be undone.")
-          ) {
+          )
             return;
-          }
-
           try {
             await deleteConversation(id);
             setParams({});
@@ -500,7 +476,6 @@ export default function useMessaging() {
           }
           break;
         }
-
         default:
           break;
       }
@@ -512,6 +487,7 @@ export default function useMessaging() {
     loading,
     messagesLoading,
     visible,
+    connections: conversations.map((c) => c.doctor), // 💡 👈 இது புதிதாக சேர்க்கப்பட்டுள்ளது!
     active,
     activeId,
     activeMeta,
@@ -523,7 +499,6 @@ export default function useMessaging() {
     filter: isCommunity ? "community" : filter,
     setFilter: changeFilter,
     isCommunity,
-    community,
     openCommunity,
     unreadCount,
     hasConnections: conversations.length > 0,

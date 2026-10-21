@@ -1,6 +1,5 @@
-
-import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Heart,
   MessageCircle,
@@ -13,7 +12,6 @@ import {
   MapPin,
   Video,
   Sparkles,
-  Flag,
   Globe,
   ChevronRight,
   Users,
@@ -24,17 +22,36 @@ import {
 } from "lucide-react";
 
 import "./FeedPage.css";
-// import CreatePostCard from "../components/CreatePostCard.jsx";
-
 import CreatePostCard from "../components/CreatorPostCard.jsx";
 import useFeed from "../hooks/useFeed.js";
 import useStories from "../hooks/useStories.js";
-
+import useAuthSession from '../../../shared/hooks/useAuthSession'
 import {
   createFeedPost,
   likeFeedPost,
   unlikeFeedPost,
 } from "../service/feedService.js";
+
+function getStoryExpiry(story) {
+  const createdAt =
+    story?.created_at ??
+    story?.createdAt ??
+    story?.published_at ??
+    story?.publishedAt;
+
+  if (!createdAt) return null;
+
+  const timestamp = new Date(createdAt).getTime();
+
+  return Number.isNaN(timestamp)
+    ? null
+    : timestamp + 24 * 60 * 60 * 1000;
+}
+
+
+function getStoryId(story) {
+  return story?.id ?? story?.pk ?? story?.uuid ?? null;
+}
 
 function getPostId(post) {
   return post?.id ?? post?.pk;
@@ -64,14 +81,84 @@ function getAuthorName(post) {
   );
 }
 
+function getAuthorUsername(post) {
+  const author = post?.author && typeof post.author === "object" ? post.author : {};
+  const user = post?.user && typeof post.user === "object" ? post.user : {};
+  const username =
+    post?.author_username ||
+    post?.username ||
+    author?.username ||
+    user?.username ||
+    post?.doctor?.username ||
+    "";
+
+  return typeof username === "string" ? username.trim() : "";
+}
+
+
+function resolveBackendUrl(value) {
+  if (!value || typeof value !== "string") return "";
+  const url = value.trim();
+  if (!url) return "";
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  if (url.startsWith("//")) return `${window.location.protocol}${url}`;
+
+  const apiBase = (
+    import.meta.env.VITE_API_BASE_URL ||
+    "http://127.0.0.1:8000/api"
+  ).replace(/\/+$/, "");
+  const backendBase = apiBase.replace(/\/api\/?$/i, "");
+  return `${backendBase}/${url.replace(/^\/+/, "")}`;
+}
+
 function getAuthorAvatar(post) {
-  return (
+  const author =
+    post?.author && typeof post.author === "object" ? post.author :
+    post?.user && typeof post.user === "object" ? post.user : {};
+
+  const value =
     post?.author_avatar ||
-    post?.author?.avatar ||
-    post?.author?.profile_picture ||
+    post?.author_profile_photo_url ||
+    author?.profile_photo_url ||
+    author?.profile_photo ||
+    author?.profile_picture ||
+    author?.avatar_url ||
+    author?.avatar ||
+    post?.profile_photo_url ||
+    post?.profile_picture ||
+    post?.avatar_url ||
     post?.avatar ||
-    "/default-avatar.png"
+    author?.doctor_profile?.profile_photo_url ||
+    "";
+
+  return resolveBackendUrl(value);
+}
+
+function getStoryMediaUrl(story) {
+  return resolveBackendUrl(
+    story?.media_url || story?.mediaUrl || story?.image_url ||
+    story?.image || story?.photo_url || story?.file_url || story?.media || ""
   );
+}
+
+function getStoryOwnerId(story) {
+  const author = story?.author && typeof story.author === "object" ? story.author : {};
+  const user = story?.user && typeof story.user === "object" ? story.user : {};
+  const id = story?.author_id ?? story?.user_id ?? story?.doctor_id ??
+    author?.id ?? author?.user_id ?? user?.id ?? user?.user_id ??
+    story?.author_username ?? author?.username ?? user?.username;
+  // Do not group records with no identifiable owner together.
+  return id == null ? `story:${getStoryId(story) ?? "unknown"}` : String(id);
+}
+
+function groupStoriesByDoctor(stories) {
+  const groups = new Map();
+  for (const story of stories) {
+    const ownerId = getStoryOwnerId(story);
+    if (!groups.has(ownerId)) groups.set(ownerId, []);
+    groups.get(ownerId).push(story);
+  }
+  return Array.from(groups.entries()).map(([ownerId, items]) => ({ ownerId, stories: items }));
 }
 
 function getPostType(post) {
@@ -83,12 +170,8 @@ function getPostType(post) {
 }
 
 function getMediaUrl(post) {
-  return (
-    post?.media_url ||
-    post?.image_url ||
-    post?.image ||
-    post?.cover_image ||
-    ""
+  return resolveBackendUrl(
+    post?.media_url || post?.image_url || post?.image || post?.cover_image || ""
   );
 }
 
@@ -108,19 +191,16 @@ function HeroBanner({ mode }) {
     <div className="zenve-hero">
       <div className="hero-left">
         <p className="eyebrow">THE ZENVE VET COMMUNITY</p>
-
         <h1>
           {isClinical
             ? "Clinical cases. A new perspective."
             : "Every case. A new perspective."}
         </h1>
-
         <p className="sub">
           {isClinical
             ? "Explore veterinary cases and learn from the experiences of your community."
             : "Explore the knowledge and experiences of your community."}
         </p>
-
         <a className="cta" href="#feed-posts">
           {isClinical ? "Explore cases" : "Make your mark"}
           <ArrowUpRight size={16} />
@@ -139,74 +219,36 @@ function HeroBanner({ mode }) {
   );
 }
 
-function StoriesSection({
-  stories,
-  loading,
-  onCreateStory,
-  onOpenStory,
-}) {
+function StoriesSection({ storyGroups, loading, onCreateStory, onOpenStory }) {
   return (
     <section className="white-card">
       <div className="head">
         <b>Moments from the community</b>
-        <span>
-          STORIES <ArrowUpRight size={14} />
-        </span>
+        <span>STORIES <ArrowUpRight size={14} /></span>
       </div>
-
       <div className="stories">
-        <button
-          type="button"
-          className="story your-story"
-          aria-label="Create your story"
-          onClick={onCreateStory}
-        >
-          <div className="ring add">
-            <Plus size={22} />
-          </div>
+        <button type="button" className="story your-story" aria-label="Create your story" onClick={onCreateStory}>
+          <div className="ring add"><Plus size={22} /></div>
           <span>Your story</span>
         </button>
-
-        {stories.map((story, index) => (
-          <button
-            type="button"
-            key={story.id ?? `story-${index}`}
-            className="story"
-            onClick={() => onOpenStory(index)}
-            aria-label={`View story by ${
-              story.author_full_name ||
-              story.author_username ||
-              "Veterinarian"
-            }`}
-          >
-            <div className="ring">
-              <img
-                src={
-                  story.author_avatar ||
-                  story.author?.avatar ||
-                  story.avatar ||
-                  "/default-avatar.png"
-                }
-                alt=""
-              />
-            </div>
-
-            <span>
-              {story.author_full_name ||
-                story.author_username ||
-                story.name ||
-                "Veterinarian"}
-            </span>
-          </button>
-        ))}
-
-        {!loading && stories.length === 0 && (
-          <span className="empty-text">No stories yet</span>
-        )}
-
-        {loading && (
-          <span className="empty-text">Loading stories...</span>
-        )}
+        {storyGroups.map((group, index) => {
+          const latest = group.stories[group.stories.length - 1];
+          const author = latest?.author && typeof latest.author === "object" ? latest.author :
+            latest?.user && typeof latest.user === "object" ? latest.user : {};
+          const name = author.full_name || author.fullName || author.name || author.username ||
+            latest?.author_full_name || latest?.author_username || latest?.doctor_name || "Veterinarian";
+          const avatar = getAuthorAvatar(latest);
+          return (
+            <button type="button" key={group.ownerId} className="story" onClick={() => onOpenStory(index)} aria-label={`View ${name}'s stories`}>
+              <div className="ring">
+                {avatar ? <img src={avatar} alt={`${name}'s profile`} onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <span>{name.charAt(0).toUpperCase()}</span>}
+              </div>
+              <span>{name}</span>
+            </button>
+          );
+        })}
+        {!loading && storyGroups.length === 0 && <span className="empty-text">No stories yet</span>}
+        {loading && <span className="empty-text">Loading stories...</span>}
       </div>
     </section>
   );
@@ -236,9 +278,7 @@ function FeedTabs({ tab, setTab, mode, followingAvailable }) {
 
       <span className="community">
         <span className="status-dot" />
-        {mode === "clinical-cases"
-          ? "CLINICAL CASES"
-          : "COMMUNITY FEED"}
+        {mode === "clinical-cases" ? "CLINICAL CASES" : "COMMUNITY FEED"}
       </span>
     </div>
   );
@@ -271,8 +311,7 @@ function FeedFilters({
   );
 
   const postTypes = useMemo(
-    () =>
-      [...new Set(posts.map(getPostType).filter(Boolean))].sort(),
+    () => [...new Set(posts.map(getPostType).filter(Boolean))].sort(),
     [posts]
   );
 
@@ -321,14 +360,19 @@ function PostCard({
   onShare,
   mode,
 }) {
+  const type = getPostType(post);
   const isClinical =
     mode === "clinical-cases" ||
-    getPostType(post) === "case" ||
-    getPostType(post) === "clinical_case";
+    type === "case" ||
+    type === "clinical_case";
 
   const title = post.title || post.case_title;
   const description = getPostContent(post);
   const author = getAuthorName(post);
+  const authorUsername = getAuthorUsername(post);
+  const authorProfilePath = authorUsername
+    ? `/doctors/${encodeURIComponent(authorUsername)}`
+    : null;
   const role =
     post.author_specialty ||
     post.specialty ||
@@ -336,72 +380,87 @@ function PostCard({
     post.role ||
     "Veterinary professional";
 
-  const image = getMediaUrl(post);
+  const media = getMediaUrl(post);
   const likesCount = getCount(post.likes_count ?? post.likes);
-  const commentsCount = getCount(
-    post.comments_count ?? post.comments
-  );
-
-  const postId = getPostId(post) ?? `post-${index}`;
+  const commentsCount = getCount(post.comments_count ?? post.comments);
 
   return (
     <article className="white-card post-card">
       <div className="post-head">
-        <img src={getAuthorAvatar(post)} alt="" />
-
-        <div>
-          <b>{author}</b>
+        {authorProfilePath ? (
+          <Link
+            to={authorProfilePath}
+            className="post-author-avatar-link"
+            style={{ color: "inherit", textDecoration: "none" }}
+            aria-label={`View ${author}'s profile`}
+            title={`View ${author}'s profile`}
+          >
+            {getAuthorAvatar(post) ? (
+              <img
+                src={getAuthorAvatar(post)}
+                alt=""
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
+            ) : (
+              <span className="post-avatar-fallback">
+                {author.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </Link>
+        ) : getAuthorAvatar(post) ? (
+          <img
+            src={getAuthorAvatar(post)}
+            alt={`${author}'s profile`}
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+          />
+        ) : (
+          <span className="post-avatar-fallback">{author.charAt(0).toUpperCase()}</span>
+        )}
+        <div className="post-author-details">
+          {authorProfilePath ? (
+            <Link
+              to={authorProfilePath}
+              className="post-author-name-link"
+              style={{ color: "inherit", textDecoration: "none" }}
+              aria-label={`View ${author}'s profile`}
+            >
+              <b>{author}</b>
+            </Link>
+          ) : (
+            <b>{author}</b>
+          )}
           <small>{role}</small>
         </div>
       </div>
 
       {title && <h2 className="ad-title">{title}</h2>}
-
-      {description && (
-        <p className="post-text">{description}</p>
-      )}
+      {description && <p className="post-text">{description}</p>}
 
       {isClinical && (
         <div className="clinical-details">
-          {post.species && (
-            <p>
-              <b>Animal / Species:</b> {post.species}
-            </p>
-          )}
-          {post.symptoms && (
-            <p>
-              <b>Clinical signs:</b> {post.symptoms}
-            </p>
-          )}
-          {post.diagnosis && (
-            <p>
-              <b>Diagnosis:</b> {post.diagnosis}
-            </p>
-          )}
-          {post.treatment && (
-            <p>
-              <b>Treatment:</b> {post.treatment}
-            </p>
-          )}
-          {post.outcome && (
-            <p>
-              <b>Outcome:</b> {post.outcome}
-            </p>
-          )}
+          {post.species && <p><b>Animal / Species:</b> {post.species}</p>}
+          {post.symptoms && <p><b>Clinical signs:</b> {post.symptoms}</p>}
+          {post.diagnosis && <p><b>Diagnosis:</b> {post.diagnosis}</p>}
+          {post.treatment && <p><b>Treatment:</b> {post.treatment}</p>}
+          {post.outcome && <p><b>Outcome:</b> {post.outcome}</p>}
         </div>
       )}
 
-      {image && (
+      {media && type !== "video" && (
         <img
           className="post-image"
-          src={image}
+          src={media}
           alt={title || "Post attachment"}
           loading="lazy"
         />
       )}
 
-      {getPostType(post) === "video" && image && (
-        <video className="post-image" src={image} controls>
+      {type === "video" && media && (
+        <video className="post-image" src={media} controls>
           Your browser does not support video playback.
         </video>
       )}
@@ -409,32 +468,15 @@ function PostCard({
       {isClinical && (
         <div className="consent">
           <ClipboardList size={15} />
-          <span>
-            Clinical case · Verify patient consent and de-identification
-          </span>
+          <span>Clinical case · Verify patient consent and de-identification</span>
         </div>
       )}
 
       <div className="stats">
-        <span>
-          <Eye size={15} />
-          {post.views_count ?? post.views ?? 0} views
-        </span>
-
-        <span>
-          <Heart size={15} />
-          {likesCount} likes
-        </span>
-
-        <span>
-          <MessageCircle size={15} />
-          {commentsCount} comments
-        </span>
-
-        <span>
-          <Share2 size={15} />
-          {post.shares_count ?? post.shares ?? 0} shares
-        </span>
+        <span><Eye size={15} /> {post.views_count ?? post.views ?? 0} views</span>
+        <span><Heart size={15} /> {likesCount} likes</span>
+        <span><MessageCircle size={15} /> {commentsCount} comments</span>
+        <span><Share2 size={15} /> {post.shares_count ?? post.shares ?? 0} shares</span>
       </div>
 
       <div className="actions">
@@ -444,34 +486,21 @@ function PostCard({
           onClick={() => onToggleLike(post)}
           disabled={likePending}
           aria-pressed={isLiked}
-          aria-label={isLiked ? "Unlike post" : "Like post"}
         >
           {likePending ? (
             <LoaderCircle size={19} />
           ) : (
-            <Heart
-              size={20}
-              strokeWidth={1.8}
-              fill={isLiked ? "currentColor" : "none"}
-            />
+            <Heart size={20} fill={isLiked ? "currentColor" : "none"} />
           )}
           <span>{isLiked ? "Appreciated" : "Appreciate"}</span>
         </button>
 
-        <button
-          type="button"
-          className="action-btn"
-          onClick={() => onDiscuss(post)}
-        >
+        <button type="button" className="action-btn" onClick={() => onDiscuss(post)}>
           <MessageCircle size={18} />
           <span>Discuss</span>
         </button>
 
-        <button
-          type="button"
-          className="action-btn"
-          onClick={() => onShare(post)}
-        >
+        <button type="button" className="action-btn" onClick={() => onShare(post)}>
           <Share2 size={18} />
           <span>Share</span>
         </button>
@@ -480,42 +509,28 @@ function PostCard({
   );
 }
 
-function PeopleToKnow({ people }) {
+function PeopleToKnow({ people, onViewAll }) {
   return (
     <section className="right-card">
       <div className="head">
         <b>PEOPLE TO KNOW</b>
-        <span className="text-link">View all</span>
+        <button type="button" className="text-link" onClick={onViewAll}>View all</button>
       </div>
-
-      {people.length === 0 ? (
-        <p className="empty-text">No suggestions yet</p>
-      ) : (
-        people.map((person, index) => (
-          <div
-            key={person.id ?? `person-${index}`}
-            className="person"
-          >
-            <img
-              src={person.avatar || "/default-avatar.png"}
-              alt=""
-            />
-
-            <div>
-              <b>
-                {person.name ||
-                  person.full_name ||
-                  person.username ||
-                  "Veterinarian"}
-              </b>
-              <small>{person.spec || person.specialty || ""}</small>
-              <small className="person-location">
-                <MapPin size={12} />
-                {person.city || "Location unavailable"}
-              </small>
+      {people.length === 0 ? <p className="empty-text">No suggestions yet</p> : (
+        people.slice(0, 3).map((person, index) => {
+          const name = person.name || person.full_name || person.fullName || person.username || "Veterinarian";
+          const avatar = resolveBackendUrl(person.profile_photo_url || person.profile_picture || person.avatar_url || person.avatar || "");
+          return (
+            <div key={person.id ?? person.user_id ?? person.username ?? `person-${index}`} className="person">
+              {avatar ? <img src={avatar} alt={`${name}'s profile`} onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <span className="person-avatar-fallback">{name.charAt(0).toUpperCase()}</span>}
+              <div>
+                <b>{name}</b>
+                <small>{person.spec || person.specialty || person.professional_title || ""}</small>
+                <small className="person-location"><MapPin size={12} />{person.city || "Location unavailable"}</small>
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </section>
   );
@@ -533,9 +548,7 @@ function ZenveAdvantage() {
         <Globe size={20} />
         <div>
           <b>Your own professional page</b>
-          <small>
-            A place for your work, your voice, your professional identity.
-          </small>
+          <small>A place for your work, your voice, your professional identity.</small>
         </div>
         <ChevronRight size={17} />
       </div>
@@ -573,14 +586,14 @@ function BreakthroughCard() {
   );
 }
 
-export default function FeedPage({
+export default function ClinicalCasesPage({
   posts: providedPosts,
   peopleToKnow = [],
   stories: providedStories,
   mode = "feed",
 }) {
   const navigate = useNavigate();
-
+  const isAuthenticated = useAuthSession()
   const {
     posts: fetchedPosts,
     loading: feedLoading,
@@ -606,24 +619,65 @@ export default function FeedPage({
   const [storyUploadOpen, setStoryUploadOpen] = useState(false);
   const [storyCaption, setStoryCaption] = useState("");
   const [storyFile, setStoryFile] = useState(null);
+  const [storyPreviewUrl, setStoryPreviewUrl] = useState("");
   const [storySubmitting, setStorySubmitting] = useState(false);
   const [videoPreview, setVideoPreview] = useState(null);
 
-  const safePosts = Array.isArray(providedPosts)
-    ? providedPosts.length
-      ? providedPosts
-      : fetchedPosts
+  useEffect(() => {
+    if (!storyFile) {
+      setStoryPreviewUrl("");
+      return undefined;
+    }
+
+    const url = URL.createObjectURL(storyFile);
+    setStoryPreviewUrl(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [storyFile]);
+
+  const safePosts = Array.isArray(providedPosts) && providedPosts.length
+    ? providedPosts
     : fetchedPosts;
 
-  const safeStories = Array.isArray(providedStories)
-    ? providedStories.length
-      ? providedStories
-      : fetchedStories
-    : fetchedStories;
+  const safeStories = useMemo(() => {
+    const source =
+      Array.isArray(providedStories) && providedStories.length
+        ? providedStories
+        : fetchedStories;
 
-  const safePeople = Array.isArray(peopleToKnow)
-    ? peopleToKnow
-    : [];
+    const now = Date.now();
+    const seen = new Set();
+
+    return (Array.isArray(source) ? source : []).filter((story) => {
+      const expiry = getStoryExpiry(story);
+      if (expiry !== null && expiry <= now) return false;
+
+      const id = getStoryId(story);
+      if (id !== null) {
+        const key = String(id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+      }
+
+      return true;
+    });
+  }, [providedStories, fetchedStories]);
+
+  const storyGroups = useMemo(() => groupStoriesByDoctor(safeStories), [safeStories]);
+  const orderedStories = useMemo(
+    () => storyGroups.flatMap((group) => group.stories),
+    [storyGroups]
+  );
+  const storyGroupStartIndices = useMemo(() => {
+    let offset = 0;
+    return storyGroups.map((group) => {
+      const start = offset;
+      offset += group.stories.length;
+      return start;
+    });
+  }, [storyGroups]);
+
+  const safePeople = Array.isArray(peopleToKnow) ? peopleToKnow : [];
 
   const visiblePosts = useMemo(() => {
     let result = safePosts;
@@ -638,16 +692,12 @@ export default function FeedPage({
     if (specialty !== "all-specialties") {
       result = result.filter(
         (post) =>
-          (post.specialty ||
-            post.author_specialty ||
-            post.author?.specialty) === specialty
+          (post.specialty || post.author_specialty || post.author?.specialty) === specialty
       );
     }
 
     if (postType !== "all-posts") {
-      result = result.filter(
-        (post) => getPostType(post) === postType
-      );
+      result = result.filter((post) => getPostType(post) === postType);
     }
 
     if (tab === "Popular") {
@@ -691,10 +741,7 @@ export default function FeedPage({
         throw new Error("Please sign in before uploading a story.");
       }
 
-      const { createStory } = await import(
-        "../service/storyService.js"
-      );
-
+      const { createStory } = await import("../service/storyService.js");
       await createStory({ image, caption });
       await refreshStories();
 
@@ -722,7 +769,6 @@ export default function FeedPage({
     }
 
     const wasLiked = likedIds.has(postId);
-
     setPendingLikes((current) => new Set(current).add(postId));
     setActionError("");
     setActionNotice("");
@@ -736,13 +782,8 @@ export default function FeedPage({
 
       setLikedIds((current) => {
         const next = new Set(current);
-
-        if (wasLiked) {
-          next.delete(postId);
-        } else {
-          next.add(postId);
-        }
-
+        if (wasLiked) next.delete(postId);
+        else next.add(postId);
         return next;
       });
 
@@ -760,7 +801,6 @@ export default function FeedPage({
 
   async function handleShare(post) {
     const postId = getPostId(post);
-
     const shareUrl = postId
       ? `${window.location.origin}/posts/${postId}`
       : window.location.href;
@@ -787,16 +827,14 @@ export default function FeedPage({
 
   function handleDiscuss(post) {
     const postId = getPostId(post);
-
     if (!postId) {
       setActionError("This post has no server ID.");
       return;
     }
-
     navigate(`/posts/${postId}#comments`);
   }
 
-  async function handleStoryFileChange(event) {
+  function handleStoryFileChange(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
 
@@ -857,9 +895,7 @@ export default function FeedPage({
   }
 
   function closeVideoPreview() {
-    if (videoPreview?.url) {
-      URL.revokeObjectURL(videoPreview.url);
-    }
+    if (videoPreview?.url) URL.revokeObjectURL(videoPreview.url);
     setVideoPreview(null);
   }
 
@@ -869,12 +905,10 @@ export default function FeedPage({
         <HeroBanner mode={mode} />
 
         <StoriesSection
-          stories={safeStories}
+          storyGroups={storyGroups}
           loading={storiesLoading}
-          onCreateStory={() =>
-            document.getElementById("zenve-story-upload")?.click()
-          }
-          onOpenStory={setSelectedStoryIndex}
+          onCreateStory={() => document.getElementById("zenve-story-upload")?.click()}
+          onOpenStory={(groupIndex) => setSelectedStoryIndex(storyGroupStartIndices[groupIndex] ?? null)}
         />
 
         <input
@@ -885,15 +919,17 @@ export default function FeedPage({
           onChange={handleStoryFileChange}
         />
 
-        <CreatePostCard
-          mode={mode}
-          onCreatePost={handleCreatePost}
-          onCreateStory={handleCreateStory}
-          onOpenClinicalCase={() => navigate("/clinical-cases")}
-          onOpenVideo={() => {
-            document.getElementById("zenve-video-upload")?.click();
-          }}
-        />
+        {isAuthenticated && (
+  <CreatePostCard
+    mode={mode}
+    onCreatePost={handleCreatePost}
+    onCreateStory={handleCreateStory}
+    onOpenClinicalCase={() => navigate('/clinical-cases')}
+    onOpenVideo={() =>
+      document.getElementById('zenve-video-upload')?.click()
+    }
+  />
+)}
 
         <input
           id="zenve-video-upload"
@@ -904,136 +940,124 @@ export default function FeedPage({
         />
 
         {storyUploadOpen && (
-          <div className="white-card" role="dialog" aria-modal="true">
-            <div className="head">
-              <b>Create story</b>
-              <button
-                type="button"
-                className="action-btn"
-                onClick={() => {
-                  setStoryUploadOpen(false);
-                  setStoryFile(null);
-                }}
-                aria-label="Close story form"
-              >
-                <X size={18} />
-              </button>
-            </div>
+          <div
+            className="story-modal-overlay"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setStoryUploadOpen(false);
+                setStoryFile(null);
+              }
+            }}
+          >
+            <section
+              className="story-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="story-modal-title"
+            >
+              <div className="story-modal-header">
+                <h2 id="story-modal-title">Create story</h2>
+                <button
+                  type="button"
+                  className="story-modal-close"
+                  onClick={() => {
+                    setStoryUploadOpen(false);
+                    setStoryFile(null);
+                    setStoryCaption("");
+                  }}
+                  aria-label="Close story form"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-            {storyFile && (
-              <img
-                className="post-image"
-                src={URL.createObjectURL(storyFile)}
-                alt="Story preview"
-              />
-            )}
+              <div className="story-preview">
+                {storyPreviewUrl ? (
+                  <img src={storyPreviewUrl} alt="Story preview" />
+                ) : (
+                  <p>Choose an image to preview your story.</p>
+                )}
+              </div>
 
-            <form onSubmit={submitStory}>
-              <label htmlFor="zenve-story-caption">Caption (optional)</label>
-              <textarea
-                id="zenve-story-caption"
-                value={storyCaption}
-                onChange={(event) => setStoryCaption(event.target.value)}
-                maxLength={1000}
-                rows={3}
-              />
+              <form onSubmit={submitStory}>
+                <label htmlFor="zenve-story-caption">
+                  Caption (optional)
+                </label>
+                <textarea
+                  id="zenve-story-caption"
+                  value={storyCaption}
+                  onChange={(event) => setStoryCaption(event.target.value)}
+                  maxLength={1000}
+                  rows={3}
+                />
 
-              <button
-                className="post-submit"
-                type="submit"
-                disabled={storySubmitting || !storyFile}
-              >
-                {storySubmitting ? "Uploading..." : "Publish story"}
-              </button>
-            </form>
+                <button
+                  className="post-submit"
+                  type="submit"
+                  disabled={storySubmitting || !storyFile}
+                >
+                  {storySubmitting ? "Uploading..." : "Publish story"}
+                </button>
+              </form>
+            </section>
           </div>
         )}
 
-        {selectedStoryIndex !== null && (
-          <div
-            className="white-card"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Story viewer"
-          >
-            <div className="head">
-              <b>
-                {safeStories[selectedStoryIndex]?.author_full_name ||
-                  safeStories[selectedStoryIndex]?.author_username ||
-                  "Community story"}
-              </b>
-
-              <button
-                type="button"
-                className="action-btn"
-                onClick={() => setSelectedStoryIndex(null)}
-                aria-label="Close story"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {safeStories[selectedStoryIndex]?.media_url && (
-              <img
-                className="post-image"
-                src={safeStories[selectedStoryIndex].media_url}
-                alt={safeStories[selectedStoryIndex].caption || "Story"}
-              />
-            )}
-
-            <p>{safeStories[selectedStoryIndex]?.caption}</p>
-
-            <div className="actions">
-              <button
-                type="button"
-                className="action-btn"
-                disabled={selectedStoryIndex === 0}
-                onClick={() =>
-                  setSelectedStoryIndex((index) => index - 1)
-                }
-              >
-                Previous
-              </button>
-
-              <button
-                type="button"
-                className="action-btn"
-                disabled={selectedStoryIndex >= safeStories.length - 1}
-                onClick={() =>
-                  setSelectedStoryIndex((index) => index + 1)
-                }
-              >
-                Next
-              </button>
-            </div>
+        {selectedStoryIndex !== null && orderedStories[selectedStoryIndex] && (
+          <div className="story-modal-overlay" onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedStoryIndex(null);
+          }}>
+            <section className="story-modal story-viewer-modal" role="dialog" aria-modal="true" aria-label="Story viewer">
+              <div className="head">
+                <b>{getAuthorName(orderedStories[selectedStoryIndex])}</b>
+                <button type="button" className="action-btn" onClick={() => setSelectedStoryIndex(null)} aria-label="Close story"><X size={18} /></button>
+              </div>
+              {getStoryMediaUrl(orderedStories[selectedStoryIndex]) && (
+                <img className="post-image" src={getStoryMediaUrl(orderedStories[selectedStoryIndex])} alt={orderedStories[selectedStoryIndex].caption || "Story"} />
+              )}
+              <p>{orderedStories[selectedStoryIndex].caption}</p>
+              <div className="actions">
+                <button type="button" className="action-btn" disabled={selectedStoryIndex === 0} onClick={() => setSelectedStoryIndex((index) => index - 1)}>Previous</button>
+                <button type="button" className="action-btn" disabled={selectedStoryIndex >= orderedStories.length - 1} onClick={() => setSelectedStoryIndex((index) => index + 1)}>Next</button>
+              </div>
+            </section>
           </div>
         )}
 
         {videoPreview && (
-          <div className="white-card" role="dialog" aria-modal="true">
-            <div className="head">
-              <b>Video preview</b>
-              <button
-                type="button"
-                className="action-btn"
-                onClick={closeVideoPreview}
-                aria-label="Close video preview"
-              >
-                <X size={18} />
-              </button>
-            </div>
+          <div className="story-modal-overlay">
+            <section
+              className="story-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Video preview"
+            >
+              <div className="story-modal-header">
+                <h2>Video preview</h2>
+                <button
+                  type="button"
+                  className="story-modal-close"
+                  onClick={closeVideoPreview}
+                  aria-label="Close video preview"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-            <video
-              className="post-image"
-              src={videoPreview.url}
-              controls
-              autoPlay
-            />
+              <div className="story-preview">
+                <video
+                  src={videoPreview.url}
+                  controls
+                  autoPlay
+                  className="composer-preview"
+                />
+              </div>
 
-            <p>
-              {videoPreview.file.name} — preview only; publishing is not
-              connected until the backend supports video uploads.
-            </p>
+              <p>
+                {videoPreview.file.name} — preview only. Video publishing
+                requires a backend upload endpoint.
+              </p>
+            </section>
           </div>
         )}
 
@@ -1123,9 +1147,7 @@ export default function FeedPage({
                   post={post}
                   index={index}
                   isLiked={postId != null && likedIds.has(postId)}
-                  likePending={
-                    postId != null && pendingLikes.has(postId)
-                  }
+                  likePending={postId != null && pendingLikes.has(postId)}
                   onToggleLike={handleToggleLike}
                   onDiscuss={handleDiscuss}
                   onShare={handleShare}
@@ -1138,7 +1160,7 @@ export default function FeedPage({
       </main>
 
       <aside className="right-bar">
-        <PeopleToKnow people={safePeople} />
+        <PeopleToKnow people={safePeople} onViewAll={() => navigate("/network")} />
         <ZenveAdvantage />
         <BreakthroughCard />
       </aside>

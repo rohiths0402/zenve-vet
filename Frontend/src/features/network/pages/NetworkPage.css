@@ -466,7 +466,7 @@
 
 .vet-search-card__view {
   flex: 1;
-  min-width: 0;
+  width: 100px;
   min-height: 40px;
   display: flex;
   align-items: center;
@@ -488,25 +488,60 @@
 }
 
 .vet-search-card__connect {
-  display: grid;
-  place-items: center;
-  width: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  min-width: 112px;
   height: 40px;
+  padding: 0 14px;
+
   flex-shrink: 0;
-  border: 0;
-  border-radius: 3px;
-  background: transparent;
-  color: #14251c;
+  border: 1px solid #17633f;
+  border-radius: 8px;
+
+  background: #ffffff;
+  color: #17633f;
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+
   cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .vet-search-card__connect:hover:not(:disabled) {
-  background: #edf4ee;
+  background: #17633f;
+  border-color: #17633f;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.vet-search-card__connect:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .vet-search-card__connect:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+  opacity: 1;
+  cursor: default;
+  transform: none;
+}
+
+.vet-search-card__connect.is-requested {
+  background: #eaf3ec;
+  border-color: #d2e5d6;
+  color: #17633f;
+}
+
+.vet-search-card__connect.is-requested:hover {
+  background: #eaf3ec;
+  color: #17633f;
 }
 
 /* Responsive */
@@ -617,5 +652,314 @@
 
   .vet-search-results-meta {
     flex-wrap: wrap;
+  }
+}
+
+/* =========================================
+   Network tabs
+   ========================================= */
+
+.network-tabs-section {
+  width: 100%;
+  margin: 0 0 24px;
+}
+
+.network-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e7df;
+  overflow-x: auto;
+}
+
+.network-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #59675e;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.network-tabs button:hover {
+  background: #f0f5f0;
+  color: #17633f;
+}
+
+.network-tabs button.is-active {
+  border-color: #d7e6d9;
+  background: #eaf3ec;
+  color: #17633f;
+}
+
+.network-tabs button span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 20px;
+  background: #fff;
+  color: #17633f;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.network-request-status {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid #dce8dd;
+  border-radius: 7px;
+  background: #edf5ee;
+  color: #17633f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.vet-search-card__connect.is-requested {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: auto;
+  min-width: 100px;
+  padding: 0 10px;
+  border: 1px solid #dce8dd;
+  background: #edf5ee;
+  color: #17633f;
+  font-size: 11px;
+  cursor: default;
+}
+
+.connection-request-card__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.connection-requests-panel__error {
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff0ef;
+  color: #a42b22;
+  font-size: 13px;
+}
+
+.connection-requests-panel__error button {
+  margin-top: 8px;
+  padding: 7px 11px;
+  border: 1px solid #e3b6b2;
+  border-radius: 6px;
+  background: #fff;
+  color: #a42b22;
+  cursor: pointer;
+}
+
+.connection-requests-panel__notice {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #edf5ee;
+  color: #17633f;
+  font-size: 13px;
+}
+
+.is-spinning {
+  animation: network-spin 1s linear infinite;
+}
+
+@keyframes network-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .network-tabs {
+    gap: 4px;
+  }
+
+  .network-tabs button {
+    gap: 6px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .connection-request-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .connection-request-card__actions {
+    width: 100%;
+  }
+}
+
+
+.network-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e7df;
+  overflow-x: auto;
+}
+
+.network-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #59675e;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.network-tabs button:hover {
+  background: #f0f5f0;
+  color: #17633f;
+}
+
+.network-tabs button.is-active {
+  border-color: #d7e6d9;
+  background: #eaf3ec;
+  color: #17633f;
+}
+
+.network-tabs button span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 20px;
+  background: #fff;
+  color: #17633f;
+  font-size: 11px;
+}
+
+.network-request-status {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid #dce8dd;
+  border-radius: 7px;
+  background: #edf5ee;
+  color: #17633f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.connection-request-card__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.connection-request-card__withdraw {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #e5d0cd;
+  border-radius: 7px;
+  background: #fff;
+  color: #a33b31;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.connection-request-card__withdraw:hover:not(:disabled) {
+  background: #fff1ef;
+  border-color: #d9aaa5;
+}
+
+.connection-request-card__withdraw:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.vet-search-card__connect {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 112px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid #17633f;
+  border-radius: 8px;
+  background: #fff;
+  color: #17633f;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.vet-search-card__connect:hover:not(:disabled) {
+  background: #17633f;
+  color: #fff;
+}
+
+.vet-search-card__connect.is-requested {
+  border-color: #e5d0cd;
+  background: #fff;
+  color: #a33b31;
+}
+
+.vet-search-card__connect.is-requested:hover:not(:disabled) {
+  background: #fff1ef;
+  color: #a33b31;
+}
+
+.vet-search-card__connect:disabled {
+  cursor: default;
+}
+
+.is-spinning {
+  animation: network-spin 1s linear infinite;
+}
+
+@keyframes network-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .network-tabs {
+    gap: 4px;
+  }
+
+  .network-tabs button {
+    padding: 0 10px;
+    font-size: 12px;
   }
 }
