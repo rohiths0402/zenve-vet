@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { ArrowUpRight, Eye, KeyRound, Megaphone, ShieldCheck, Users, X, CheckCircle2 } from 'lucide-react';
-
 const advertiseStyles = `
 
 .advertise-page {
   box-sizing: border-box;
-  
   width: calc(100% - 280px);
   min-width: 0;
   min-height: calc(100vh - 104px);
@@ -17,7 +15,6 @@ const advertiseStyles = `
   font-family: inherit;
 }
 .advertise-page *, .advertise-page *::before, .advertise-page *::after { box-sizing: border-box; }
-
 .advertise-hero {
   background: #07583d;
   color: #f8f0d9;
@@ -90,7 +87,6 @@ const advertiseStyles = `
 }
 .advertise-pricing a { color: #d6b766; text-decoration: underline; text-underline-offset: 3px; }
 .advertise-pricing a:hover { color: #fff3d8; }
-
 .advertise-panels {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -168,7 +164,6 @@ const advertiseStyles = `
 .advertise-dashboard-button:hover { background: #efeee7; border-color: #c9c7bb; }
 .advertise-note { margin: 14px 0 0; color: #778078; font-size: 14px; }
 .advertise-form-error { margin: -4px 0 12px; color: #b42318; font-size: 13px; line-height: 1.45; }
-
 .advertise-modal-backdrop {
   position: fixed;
   top: 104px;
@@ -217,13 +212,12 @@ const advertiseStyles = `
   margin: 0 auto 16px;
   border-radius: 50%;
   color: #0a6042;
-  background: #e6f2e9;
+  background: #e6f2e9
 }
 .advertise-modal-icon.is-success { color: #18794e; background: #e1f5e9; }
 .advertise-modal h2 { margin: 0 0 10px; color: #1d2821; font-size: 22px; line-height: 1.3; }
 .advertise-modal p { margin: 0; color: #626d65; font-size: 15px; line-height: 1.65; }
 .advertise-modal-ok { margin-top: 24px; }
-
 @media (max-width: 760px) {
   .advertise-modal-backdrop {
     top: 76px;
@@ -259,7 +253,120 @@ const advertiseStyles = `
   .advertise-panel { padding: 20px 16px; border-radius: 15px; }
   .advertise-modal { padding: 30px 20px 22px; }
 }
+.advertise-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+  padding: clamp(16px, 2.2vw, 28px) clamp(14px, 2.2vw, 28px) 60px;
+  overflow-x: clip;
+}
+.advertise-hero,
+.advertise-panels,
+.advertise-panel,
+.advertise-benefit {
+  min-width: 0;
+  max-width: 100%;
+}
+.advertise-hero h1,
+.advertise-intro,
+.advertise-benefit h2,
+.advertise-benefit p,
+.advertise-panel h2 {
+  overflow-wrap: anywhere;
+}
 
+.advertise-panel input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.advertise-modal-backdrop {
+  inset: 104px 0 0 280px;
+  overflow-y: auto;
+}
+
+@media (max-width: 1100px) {
+  .advertise-hero {
+    padding: 32px 26px 48px;
+    min-height: auto;
+  }
+
+  .advertise-benefits {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .advertise-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .advertise-panel {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .advertise-page {
+    width: 100%;
+    margin: 0;
+    min-height: 100%;
+    padding: 16px 14px 40px;
+  }
+
+  .advertise-modal-backdrop {
+    inset: 76px 0 0;
+    padding: 16px;
+  }
+
+  .advertise-hero {
+    padding: 26px 20px 34px;
+    border-radius: 18px;
+  }
+
+  .advertise-benefits {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .advertise-pricing {
+    margin-top: 32px;
+  }
+
+  .advertise-modal {
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100dvh - 108px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .advertise-page {
+    padding: 12px 10px 32px;
+  }
+
+  .advertise-hero {
+    padding: 22px 16px 28px;
+  }
+
+  .advertise-eyebrow {
+    font-size: 10px;
+    letter-spacing: .16em;
+    overflow-wrap: anywhere;
+  }
+
+  .advertise-hero h1 {
+    font-size: clamp(25px, 7vw, 29px);
+  }
+
+  .advertise-panel {
+    padding: 18px 14px;
+  }
+
+  .advertise-modal {
+    padding: 28px 16px 20px;
+  }
+}
 `;
 
 export default function AdvertisePage() {
@@ -270,7 +377,6 @@ export default function AdvertisePage() {
   const [modal, setModal] = useState(null);
   const [accountError, setAccountError] = useState('');
   const [dashboardError, setDashboardError] = useState('');
-
   const startAdvertising = (event) => {
     event.preventDefault();
     setAccountError('');
@@ -288,7 +394,6 @@ export default function AdvertisePage() {
       type: 'success',
     });
   };
-
   const openDashboard = (event) => {
     event.preventDefault();
     setDashboardError('');
@@ -302,7 +407,6 @@ export default function AdvertisePage() {
       type: 'info',
     });
   };
-
   return (
     <>
       <style>{advertiseStyles}</style>
@@ -314,7 +418,6 @@ export default function AdvertisePage() {
           Your poster appears as a sponsored post inside the doctors’ feed — clearly labelled,
           reviewed by our team, measured with daily views and clicks.
         </p>
-
         <div className="advertise-benefits">
           <article className="advertise-benefit">
             <Users aria-hidden="true" />
@@ -332,13 +435,11 @@ export default function AdvertisePage() {
             <p>Views, clicks and click-through rate by day and by campaign.</p>
           </article>
         </div>
-
         <p className="advertise-pricing">
           Pricing on request — write to{' '}
           <a href="mailto:zenvefashions@gmail.com">zenvefashions@gmail.com</a>.
         </p>
       </section>
-
       <section className="advertise-panels">
         <form className="advertise-panel" onSubmit={startAdvertising} noValidate>
           <h2>Create an advertiser account</h2>
@@ -352,21 +453,27 @@ export default function AdvertisePage() {
           <button className="advertise-primary-button" type="submit">
             Start advertising <ArrowUpRight size={18} aria-hidden="true" />
           </button>
+
           <p className="advertise-note">No login needed. Free to set up.</p>
+
         </form>
 
         <form className="advertise-panel" onSubmit={openDashboard} noValidate>
+
           <h2>Already advertising?</h2>
+
           <label htmlFor="advertise-access-key">Paste your access key</label>
+
           <input id="advertise-access-key" value={accessKey} onChange={(e) => { setAccessKey(e.target.value); setDashboardError(''); }} placeholder="ZENVE-ADV:..." autoComplete="off" />
+
           {dashboardError && <p className="advertise-form-error" role="alert">{dashboardError}</p>}
+
           <button className="advertise-dashboard-button" type="submit">
+
             <KeyRound size={18} aria-hidden="true" /> Open dashboard
           </button>
-          
         </form>
       </section>
-
       {modal && (
         <div className="advertise-modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setModal(null); }}>
           <section className="advertise-modal" role="dialog" aria-modal="true" aria-labelledby="advertise-modal-title">

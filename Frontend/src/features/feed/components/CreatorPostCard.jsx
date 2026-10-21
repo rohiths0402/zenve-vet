@@ -1,5 +1,5 @@
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Stethoscope,
   Image as ImageIcon,
@@ -12,10 +12,16 @@ import {
   LoaderCircle,
 } from "lucide-react";
 
-
 import "./CreatorPostCard.css";
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
 
 export default function CreatePostCard({
   mode = "feed",
@@ -35,7 +41,17 @@ export default function CreatePostCard({
   const imageInputRef = useRef(null);
   const storyInputRef = useRef(null);
   const videoInputRef = useRef(null);
+
   const isClinical = mode === "clinical-cases";
+
+  // Release the temporary preview URL when the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
   function chooseImage(file) {
     setError("");
@@ -43,59 +59,69 @@ export default function CreatePostCard({
 
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      setError("Please select an image file.");
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setError("Choose a JPG, PNG, WEBP, or GIF image.");
+      if (imageInputRef.current) {
+        imageInputRef.current.value = "";
+      }
       return;
     }
 
     if (file.size > MAX_IMAGE_SIZE) {
       setError("Image size must not exceed 5 MB.");
+      if (imageInputRef.current) {
+        imageInputRef.current.value = "";
+      }
       return;
     }
-
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
 
     setSelectedImage(file);
     setImagePreview(URL.createObjectURL(file));
   }
 
   function clearImage() {
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
     setSelectedImage(null);
     setImagePreview("");
-    if (imageInputRef.current) imageInputRef.current.value = "";
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+
+    setError("");
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
+
     setError("");
     setSuccess("");
 
-    if (!content.trim() && !selectedImage) {
+    const trimmedContent = content.trim();
+
+    if (!trimmedContent && !selectedImage) {
       setError("Write something or select an image before posting.");
       return;
     }
 
-    if (selectedImage) {
-      setError(
-        "Image preview is ready, but image publishing requires a verified post-upload endpoint. Remove the image to publish a text post."
-      );
-      return;
-    }
-
-    if (!onCreatePost) {
-      setError("Post creation is not connected.");
+    if (typeof onCreatePost !== "function") {
+      setError("Post creation is not connected. Please check FeedPage.jsx.");
       return;
     }
 
     setSubmitting(true);
 
     try {
-      await onCreatePost(content.trim());
+      // Callback receives the caption and the optional image File.
+      // FeedPage / feedService must forward the image to Django as FormData.
+      await onCreatePost(trimmedContent, selectedImage);
+
       setContent("");
+      clearImage();
       setSuccess("Your post was published.");
     } catch (err) {
-      setError(err.message || "Unable to publish your post.");
+      setError(
+        err?.message || "Unable to publish your post. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -104,10 +130,11 @@ export default function CreatePostCard({
   async function handleStoryChange(event) {
     const image = event.target.files?.[0];
     event.target.value = "";
+
     if (!image) return;
 
-    if (!image.type.startsWith("image/")) {
-      setError("Please select an image for your story.");
+    if (!ALLOWED_IMAGE_TYPES.includes(image.type)) {
+      setError("Choose a JPG, PNG, WEBP, or GIF image for your story.");
       return;
     }
 
@@ -116,22 +143,22 @@ export default function CreatePostCard({
       return;
     }
 
-    const caption = window.prompt("Add a story caption (optional):") || "";
-
-    if (!onCreateStory) {
+    if (typeof onCreateStory !== "function") {
       setError("Story creation is not connected.");
       return;
     }
+
+    const caption = window.prompt("Add a story caption (optional):") || "";
 
     setError("");
     setSuccess("");
     setSubmitting(true);
 
     try {
-      await onCreateStory(image, caption);
+      await onCreateStory(image, caption.trim());
       setSuccess("Your story was uploaded.");
     } catch (err) {
-      setError(err.message || "Unable to upload your story.");
+      setError(err?.message || "Unable to upload your story.");
     } finally {
       setSubmitting(false);
     }
@@ -140,19 +167,18 @@ export default function CreatePostCard({
   function handleVideoChange(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
+
     if (!file) return;
 
     if (!file.type.startsWith("video/")) {
-      setError("Please select a video file.");
+      setError("Please select a valid video file.");
       return;
     }
 
-    if (onOpenVideo) {
+    if (typeof onOpenVideo === "function") {
       onOpenVideo(file);
     } else {
-      setError(
-        "Video preview is not connected yet. A video upload endpoint must be verified before publishing."
-      );
+      setError("Video upload or preview is not connected yet.");
     }
   }
 
@@ -161,6 +187,7 @@ export default function CreatePostCard({
       <form onSubmit={handleSubmit}>
         <label className="create-post-input">
           <Stethoscope size={22} aria-hidden="true" />
+
           <textarea
             value={content}
             onChange={(event) => {
@@ -183,20 +210,19 @@ export default function CreatePostCard({
           <span className="create-post-ai-icon">
             <Sparkles size={16} />
           </span>
+
           <span>
             <strong>Zynvo AI</strong>
             <small>FREE</small>
           </span>
+
           <span className="create-post-ai-spacer" />
+
           <button
             type="button"
             onClick={() => onOpenAIAssistant?.()}
-            disabled={!onOpenAIAssistant}
-            title={
-              onOpenAIAssistant
-                ? "Open AI case assistant"
-                : "AI assistant endpoint is not configured"
-            }
+            disabled={!onOpenAIAssistant || submitting}
+            title="Open AI case assistant"
           >
             AI assistant
           </button>
@@ -205,10 +231,12 @@ export default function CreatePostCard({
         {imagePreview && (
           <div className="create-post-preview">
             <img src={imagePreview} alt="Selected post preview" />
+
             <button
               type="button"
               onClick={clearImage}
               aria-label="Remove selected image"
+              disabled={submitting}
             >
               <X size={17} />
             </button>
@@ -244,6 +272,7 @@ export default function CreatePostCard({
             <button
               type="button"
               onClick={() => imageInputRef.current?.click()}
+              disabled={submitting}
             >
               <ImageIcon size={18} />
               <span>Photo / Post</span>
@@ -252,6 +281,7 @@ export default function CreatePostCard({
             <button
               type="button"
               onClick={() => onOpenClinicalCase?.()}
+              disabled={submitting || !onOpenClinicalCase}
             >
               <ClipboardList size={18} />
               <span>Clinical case</span>
@@ -260,6 +290,7 @@ export default function CreatePostCard({
             <button
               type="button"
               onClick={() => storyInputRef.current?.click()}
+              disabled={submitting}
             >
               <Plus size={18} />
               <span>Story</span>
@@ -268,6 +299,7 @@ export default function CreatePostCard({
             <button
               type="button"
               onClick={() => videoInputRef.current?.click()}
+              disabled={submitting}
             >
               <Video size={18} />
               <span>Short video</span>
@@ -276,7 +308,7 @@ export default function CreatePostCard({
             <button
               type="button"
               onClick={() => onOpenAIAssistant?.()}
-              disabled={!onOpenAIAssistant}
+              disabled={!onOpenAIAssistant || submitting}
             >
               <Sparkles size={18} />
               <span>AI case assistant</span>
@@ -286,10 +318,15 @@ export default function CreatePostCard({
           <button
             type="submit"
             className="post-submit"
-            disabled={submitting || (!content.trim() && !selectedImage)}
+            disabled={
+              submitting || (!content.trim() && !selectedImage)
+            }
           >
             {submitting ? (
-              <LoaderCircle size={17} className="create-post-spinner" />
+              <LoaderCircle
+                size={17}
+                className="create-post-spinner"
+              />
             ) : (
               <>
                 Post <ArrowUpRight size={16} />

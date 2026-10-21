@@ -1,86 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Users } from "lucide-react";
 import ConversationList from "../components/ConversationList";
 import ChatWindow from "../components/ChatWindow";
 import CommunityChat from "../components/CommunityChat";
 import EmptyState from "../components/EmptyState";
 import useMessaging from "../hooks/useMessaging";
-import { getProfile } from "../services/messageService";
+import {
+  getProfile,
+  sendMessage,
+  startConversation,
+} from "../services/messageService";
+import {
+  COMMUNITIES_KEY,
+  acceptInvite,
+  appendMessage,
+  buildInviteLink,
+  createCommunity,
+  joinCommunity,
+  leaveCommunity,
+  loadCommunities,
+  makeMessage,
+  saveCommunities,
+  viewCommunity,
+} from "../services/communityStore";
 import RegistrationModal from "../../auth/components/RegistrationModal";
 import SignInModal from "../../auth/components/SignInModal";
 import "../messages.css";
 
-const COMMUNITIES_KEY = "zenvet_communities";
-
-const DEFAULT_COMMUNITY = {
-  id: "1",
-  name: "Zenve Vet Community",
-  memberCount: 11,
-  joined: true,
-  members: [
-    {
-      id: "101",
-      name: "Dr. Arjun Mehta",
-      specialty: "Veterinary Surgery",
-      city: "Mumbai",
-    },
-    {
-      id: "102",
-      name: "Dr. Priya Nair",
-      specialty: "Small Animal Medicine",
-      city: "Chennai",
-    },
-    {
-      id: "103",
-      name: "Dr. Vikram Singh",
-      specialty: "Equine Specialist",
-      city: "Bengaluru",
-    },
-  ],
-  messages: [
-    {
-      id: "c1",
-      from: "them",
-      senderName: "Dr. Vikram Singh",
-      text: "Sharing some equine rehab notes this week, will post them under clinical cases.",
-      createdAt: new Date().toISOString(),
-    },
-  ],
-};
-
-function loadCommunities() {
-  try {
-    const raw = localStorage.getItem(COMMUNITIES_KEY);
-
-    if (!raw) return [DEFAULT_COMMUNITY];
-
-    const list = JSON.parse(raw);
-
-    if (!Array.isArray(list) || list.length === 0) {
-      return [DEFAULT_COMMUNITY];
-    }
-
-    return list.map((community) => ({
-      ...community,
-      joined: true,
-      members:
-        Array.isArray(community.members) && community.members.length > 0
-          ? community.members
-          : DEFAULT_COMMUNITY.members,
-      messages: Array.isArray(community.messages) ? community.messages : [],
-    }));
-  } catch {
-    return [DEFAULT_COMMUNITY];
-  }
-}
-
-function saveCommunities(list) {
-  try {
-    localStorage.setItem(COMMUNITIES_KEY, JSON.stringify(list));
-  } catch {
-    return;
-  }
-}
+const NO_COMMUNITY = "none";
 
 export default function MessagesPage() {
   const [showRegistration, setShowRegistration] = useState(false);
@@ -91,22 +39,83 @@ export default function MessagesPage() {
   const [params, setParams] = useSearchParams();
   const profile = getProfile();
   const chat = useMessaging();
+  const { flash } = chat;
+
+  const profileId = profile ? String(profile.id) : null;
+  const profileName = profile?.name || "Doctor";
+  const joinCode = params.get("join");
+  const joinName = params.get("name");
+
+  useEffect(() => {
+    function handleStorage(event) {
+      if (event.key === COMMUNITIES_KEY) {
+        setCommunities(loadCommunities());
+      }
+    }
+
+    window.addEventListener("storage", handleStorage);
+
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  useEffect(() => {
+    if (!joinCode || !profileId) return;
+
+    const result = acceptInvite(
+      loadCommunities(),
+      { code: joinCode, name: joinName },
+      { id: profileId, name: profileName },
+    );
+
+    saveCommunities(result.list);
+    setCommunities(result.list);
+    setParams({ community: String(result.community.id) }, { replace: true });
+
+    if (result.status === "joined") {
+      flash(`You joined ${result.community.name}.`);
+    }
+
+    if (result.status === "copied") {
+      flash(
+        `${result.community.name} was not found on this device, so a local copy was created.`,
+      );
+    }
+  }, [joinCode, joinName, profileId, profileName, setParams, flash]);
+
+  const me = { id: profileId, name: profileName };
+
+  const views = communities.map((item) => viewCommunity(item, profileId));
+
+  const listItems = views.map((item) => ({
+    ...item,
+    messages: item.messages.filter((message) => !message.system),
+  }));
 
   const communityParam = params.get("community");
   const isCommunityActive = Boolean(communityParam) && !params.get("to");
   const currentFilter = communityTab ? "community" : chat.filter;
 
   const activeCommunity =
-    communities.find((item) => String(item.id) === String(communityParam)) ||
-    communities[0] ||
-    DEFAULT_COMMUNITY;
+    views.find((item) => String(item.id) === String(communityParam)) ||
+    views[0] ||
+    null;
+
+  function update(mutator) {
+    const next = mutator(loadCommunities());
+    saveCommunities(next);
+    setCommunities(next);
+  }
 
   function handleFilter(key) {
     if (key === "community") {
       setCommunityTab(true);
 
       if (!isCommunityActive) {
-        setParams({ community: String(activeCommunity.id) });
+        setParams({
+          community: activeCommunity
+            ? String(activeCommunity.id)
+            : NO_COMMUNITY,
+        });
       }
 
       return;
@@ -117,7 +126,15 @@ export default function MessagesPage() {
   }
 
   function handleOpenCommunity(id) {
-    setParams({ community: String(id || "1") });
+    setParams({ community: String(id) });
+  }
+
+  function handleJoin() {
+    update((list) => joinCommunity(list, activeCommunity.id, me));
+  }
+
+  function handleLeave() {
+    update((list) => leaveCommunity(list, activeCommunity.id, me));
   }
 
   async function handleCommunitySend(payload) {
@@ -127,74 +144,82 @@ export default function MessagesPage() {
 
     if (!content && !attachment) return false;
 
-    const message = {
-      id: `cmsg_${Date.now()}`,
-      from: "me",
-      senderName: profile?.name || "You",
-      text: content,
-      attachment: attachment || null,
-      createdAt: new Date().toISOString(),
-    };
+    if (!activeCommunity?.joined) {
+      flash("Join the community to send messages.");
+      return false;
+    }
 
-    const updated = communities.map((item) =>
-      String(item.id) === String(activeCommunity.id)
-        ? { ...item, messages: [...(item.messages || []), message] }
-        : item,
-    );
-
-    setCommunities(updated);
-    saveCommunities(updated);
+    const message = makeMessage(me, { text: content, attachment });
+    update((list) => appendMessage(list, activeCommunity.id, message));
     return true;
   }
 
-  async function handleCommunityCreate({ title, participantIds = [] }) {
-    const communityName = String(title || "").trim();
+  function handleCommunityCreate({
+    title,
+    participantIds = [],
+    selectedDoctors = [],
+  }) {
+    const name = String(title || "").trim();
 
-    if (!communityName) return;
+    if (!name) return;
 
-    const selectedIds = participantIds.map(String);
+    let selected = selectedDoctors;
 
-    const selected = chat.connections
-      .filter((doctor) => selectedIds.includes(String(doctor.id)))
-      .map(({ id, name, specialty, city, avatar }) => ({
-        id,
-        name,
-        specialty,
-        city,
-        avatar,
-      }));
+    if (!selected || selected.length === 0) {
+      const selectedIds = participantIds.map(String);
+      selected = (chat.connections || [])
+        .filter((doctor) => selectedIds.includes(String(doctor.id)))
+        .map((doctor) => ({
+          id: String(doctor.id),
+          name: doctor.name,
+          specialty: doctor.specialty,
+          city: doctor.city,
+          avatar: doctor.avatar,
+        }));
+    }
 
-    const members = [
-      {
-        id: String(profile?.id || "me"),
-        name: profile?.name || "You",
-        isYou: true,
-      },
-      ...selected,
-    ];
+    const created = createCommunity({ name, profile: me, selected });
 
-    const created = {
-      id: `community_${Date.now()}`,
-      name: communityName,
-      memberCount: members.length,
-      joined: true,
-      members,
-      messages: [
-        {
-          id: `init_${Date.now()}`,
-          from: "me",
-          senderName: profile?.name || "You",
-          text: `Welcome to ${communityName}! Community created.`,
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    };
-
-    const updated = [created, ...communities];
-
-    setCommunities(updated);
-    saveCommunities(updated);
+    update((list) => [created, ...list]);
     setParams({ community: created.id });
+  }
+
+  async function handleShareToDoctor(doctor) {
+    if (!doctor.conversationId) {
+      flash("Start a conversation with this doctor first.");
+      return false;
+    }
+
+    const text = `Join "${activeCommunity.name}" on Zenve Vet: ${buildInviteLink(activeCommunity)}`;
+
+    try {
+      await sendMessage(doctor.conversationId, { text });
+      flash(`Invite sent to ${doctor.name}.`);
+      return true;
+    } catch (error) {
+      flash(error.message || "Could not send the invite.");
+      return false;
+    }
+  }
+
+  async function handleMessageMember(member) {
+    const existing = chat.connections.find(
+      (doctor) => String(doctor.id) === String(member.id),
+    );
+
+    if (existing?.conversationId) {
+      setCommunityTab(false);
+      chat.select(existing.conversationId);
+      return;
+    }
+
+    try {
+      const conversationId = await startConversation(member.id);
+      setCommunityTab(false);
+      setParams({ to: conversationId });
+    } catch (error) {
+      flash(error.message || "Could not start the conversation.");
+    }
   }
 
   function handleOpenRegistration() {
@@ -240,6 +265,51 @@ export default function MessagesPage() {
     );
   }
 
+  function renderMain() {
+    if (!isCommunityActive) {
+      return (
+        <ChatWindow
+          doctor={chat.active}
+          meta={chat.activeMeta}
+          live={chat.activePresence}
+          messages={chat.messages}
+          onSend={chat.send}
+          onError={flash}
+          onAction={chat.act}
+        />
+      );
+    }
+
+    if (!activeCommunity) {
+      return (
+        <section className="msg-chat msg-chat-empty">
+          <Users size={28} strokeWidth={1.5} />
+          <h2>No communities yet</h2>
+          <p className="msg-hint">
+            Create one with the community button, or open an invite link to
+            join.
+          </p>
+        </section>
+      );
+    }
+
+    return (
+      <CommunityChat
+        key={activeCommunity.id}
+        community={activeCommunity}
+        inviteLink={buildInviteLink(activeCommunity)}
+        connections={chat.connections}
+        onJoin={handleJoin}
+        onLeave={handleLeave}
+        onSend={handleCommunitySend}
+        onShare={handleShareToDoctor}
+        onMessageMember={handleMessageMember}
+        onNotice={flash}
+        onError={flash}
+      />
+    );
+  }
+
   return (
     <>
       <div className="msg-shell">
@@ -247,8 +317,8 @@ export default function MessagesPage() {
           items={chat.visible}
           connections={chat.connections}
           presence={chat.presence}
-          community={activeCommunity}
-          communities={communities}
+          community={listItems[0]}
+          communities={listItems}
           activeCommunityId={communityParam}
           communityActive={isCommunityActive}
           onOpenCommunity={handleOpenCommunity}
@@ -262,25 +332,7 @@ export default function MessagesPage() {
           unreadCount={chat.unreadCount}
         />
 
-        {isCommunityActive ? (
-          <CommunityChat
-            community={activeCommunity}
-            onJoin={() => {}}
-            onLeave={() => {}}
-            onSend={handleCommunitySend}
-            onError={chat.flash}
-          />
-        ) : (
-          <ChatWindow
-            doctor={chat.active}
-            meta={chat.activeMeta}
-            live={chat.activePresence}
-            messages={chat.messages}
-            onSend={chat.send}
-            onError={chat.flash}
-            onAction={chat.act}
-          />
-        )}
+        {renderMain()}
       </div>
 
       {chat.notice && (

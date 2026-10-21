@@ -381,17 +381,17 @@ export default function BenefitsPage() {
           margin-top: 4px;
         }
 
-        /* Benefits page uses the existing shared Topbar and Sidebar. */
+       
         .bv-app {
-          width: calc(100% - 280px);
+          width: 100%;
+          max-width: 100%;
           min-width: 0;
-          min-height: calc(100vh - 104px);
-          margin-left: 280px;
-          margin-top: 104px;
-          overflow-x: hidden;
+          min-height: 100%;
+          margin: 0;
+          overflow-x: clip;
         }
 
-        /* Do not render a second Topbar or Sidebar inside Benefits. */
+        
         .bv-header,
         .bv-sidebar {
           display: none !important;
@@ -400,6 +400,7 @@ export default function BenefitsPage() {
         .bv-layout {
           display: block !important;
           width: 100%;
+          max-width: 100%;
           min-width: 0;
           margin: 0;
         }
@@ -416,9 +417,9 @@ export default function BenefitsPage() {
         @media (max-width: 760px) {
           .bv-app {
             width: 100%;
-            margin-left: 0;
-            margin-top: 76px;
-            min-height: calc(100vh - 76px);
+            max-width: 100%;
+            margin: 0;
+            min-height: 100%;
           }
 
           .bv-main {
@@ -996,9 +997,302 @@ export default function BenefitsPage() {
             padding: 21px;
           }
         }
+
+       
+        .bv-app,
+        .bv-app * {
+          min-width: 0;
+        }
+
+        .bv-main,
+        .bv-hero,
+        .bv-intro,
+        .bv-grid,
+        .bv-bottom {
+          max-width: 100%;
+        }
+
+        .bv-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .bv-hero-content {
+          width: 100%;
+        }
+
+        .bv-hero h1,
+        .bv-intro h2,
+        .bv-bottom h2,
+        .bv-card h3 {
+          overflow-wrap: anywhere;
+        }
+
+        
+        .bv-overlay {
+          inset: 104px 0 0 280px;
+          box-sizing: border-box;
+        }
+
+        @media (max-width: 1100px) {
+          .bv-main {
+            padding-left: clamp(16px, 2.5vw, 28px);
+            padding-right: clamp(16px, 2.5vw, 28px);
+          }
+
+          .bv-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: clamp(14px, 2vw, 22px);
+          }
+
+          .bv-hero-content {
+            padding: clamp(20px, 3vw, 34px);
+          }
+
+          .bv-overlay {
+            inset: 104px 0 0 280px;
+            padding: 18px;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .bv-app {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            min-height: 100%;
+          }
+
+          .bv-main {
+            width: 100%;
+            padding: 16px 14px 40px;
+          }
+
+          .bv-hero {
+            width: 100%;
+            height: auto;
+            min-height: 260px;
+          }
+
+          .bv-hero-content {
+            padding: clamp(18px, 5vw, 26px);
+          }
+
+          .bv-hero h1 {
+            font-size: clamp(25px, 6vw, 31px);
+            letter-spacing: -0.5px;
+          }
+
+          .bv-hero p br,
+          .bv-intro h2 br {
+            display: none;
+          }
+
+          .bv-intro {
+            padding: 30px 0;
+          }
+
+          .bv-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: 16px;
+          }
+
+          .bv-overlay {
+            inset: 76px 0 0;
+            padding: 12px;
+          }
+
+          .bv-modal {
+            width: 100%;
+            max-width: 460px;
+            max-height: calc(100% - 8px);
+            padding: clamp(16px, 4vw, 21px);
+          }
+
+          .bv-toast {
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .bv-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .bv-hero {
+            min-height: 250px;
+          }
+
+          .bv-hero h1 {
+            font-size: clamp(24px, 7vw, 29px);
+          }
+
+          .bv-intro h2 {
+            font-size: clamp(23px, 6vw, 27px);
+          }
+
+          .bv-card {
+            padding-top: 19px;
+            padding-bottom: 22px;
+          }
+
+          .bv-bottom {
+            padding-top: 32px;
+          }
+
+          .bv-bottom h2 {
+            font-size: clamp(21px, 6vw, 25px);
+          }
+
+          .bv-modal-head {
+            gap: 10px;
+          }
+        }
+
+
+
+       
+        .bv-app {
+          display: block;
+          box-sizing: border-box;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          min-height: 0;
+          margin: 0;
+          padding: 0;
+          overflow-x: clip;
+        }
+
+        .bv-app > .bv-header,
+        .bv-app .bv-sidebar {
+          display: none !important;
+        }
+
+        .bv-app > .bv-layout {
+          display: block !important;
+          box-sizing: border-box;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          margin: 0;
+          padding: 0;
+        }
+
+        .bv-app .bv-main {
+          display: block;
+          box-sizing: border-box;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          margin: 0;
+          padding: 24px 28px 60px;
+        }
+
+        .bv-app .bv-hero,
+        .bv-app .bv-intro,
+        .bv-app .bv-grid,
+        .bv-app .bv-bottom {
+          box-sizing: border-box;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+        }
+
+        .bv-app .bv-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          column-gap: 27px;
+          row-gap: 0;
+        }
+
+        
+        .bv-overlay {
+          position: fixed !important;
+          inset: 0 !important;
+          z-index: 2147483000 !important;
+          box-sizing: border-box;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+          overflow-y: auto;
+        }
+
+        .bv-modal {
+          box-sizing: border-box;
+          width: min(100%, 460px);
+          max-width: 460px;
+          max-height: calc(100dvh - 48px);
+          overflow-y: auto;
+        }
+
+        @media (min-width: 761px) and (max-width: 1200px) {
+          .bv-app .bv-main {
+            padding: 22px 24px 48px;
+          }
+
+          .bv-app .bv-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: clamp(14px, 2vw, 22px);
+          }
+        }
+
+        @media (max-width: 760px) {
+          .bv-app,
+          .bv-app > .bv-layout,
+          .bv-app .bv-main {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            margin: 0;
+          }
+
+          .bv-app .bv-main {
+            padding: 16px 14px 40px;
+          }
+
+          .bv-app .bv-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: 16px;
+          }
+
+          .bv-overlay {
+            inset: 0 !important;
+            padding: 12px;
+          }
+
+          .bv-modal {
+            width: 100%;
+            max-width: 460px;
+            max-height: calc(100dvh - 24px);
+            padding: clamp(16px, 4vw, 21px);
+          }
+        }
+
+        @media (max-width: 520px) {
+          .bv-app .bv-main {
+            padding: 14px 12px 36px;
+          }
+
+          .bv-app .bv-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .bv-overlay {
+            padding: 10px;
+          }
+
+          .bv-modal {
+            max-height: calc(100dvh - 20px);
+            padding: 18px;
+          }
+        }
+
       `}</style>
 
-      {/* Top navigation */}
+      {}
       <header className="bv-header">
         <div className="bv-brand">
           <div className="bv-logo">♧</div>
@@ -1075,7 +1369,7 @@ export default function BenefitsPage() {
       </header>
 
       <div className="bv-layout">
-        {/* Left sidebar */}
+        {}
         <aside className="bv-sidebar">
           <div className="bv-eyebrow">Your professional world</div>
 
@@ -1142,7 +1436,7 @@ export default function BenefitsPage() {
           </div>
         </aside>
 
-        {/* Main page */}
+        {}
         <main className="bv-main">
           <section className="bv-hero">
             <div className="bv-hero-content">
@@ -1217,7 +1511,7 @@ export default function BenefitsPage() {
         </main>
       </div>
 
-      {/* Create profile popup */}
+      {}
       {showProfile && createPortal((
         <div
           className="bv-overlay"

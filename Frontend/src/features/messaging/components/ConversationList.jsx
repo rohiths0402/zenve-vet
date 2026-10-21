@@ -41,7 +41,6 @@ function getCommunityPreview(comm) {
 
 export default function ConversationList({
   items,
-  connections = [],
   presence,
   community,
   communities = [],
@@ -59,97 +58,12 @@ export default function ConversationList({
 }) {
   const [showModal, setShowModal] = useState(false);
 
-  const search = query.trim().toLowerCase();
-
   const communitiesList =
     communities.length > 0 ? communities : community ? [community] : [];
 
-  const matchedCommunities = communitiesList.filter(
-    (comm) => !search || String(comm.name).toLowerCase().includes(search),
-  );
-
-  const showCommunities = filter === "all" || filter === "community";
-  const showChats = filter !== "community";
-
-  const visibleCommunities = showCommunities ? matchedCommunities : [];
-  const visibleChats = showChats ? items : [];
-  const isEmpty = visibleCommunities.length === 0 && visibleChats.length === 0;
-
-  const emptyText = search
+  const emptyText = query.trim()
     ? "No results match your search."
     : EMPTY_TEXT[filter] || "No conversations found.";
-
-  function renderCommunity(comm) {
-    const lastMsg = comm.messages?.[comm.messages.length - 1];
-    const isThisActive =
-      communityActive && String(activeCommunityId || "1") === String(comm.id);
-
-    return (
-      <button
-        key={`community-${comm.id}`}
-        type="button"
-        className={`msg-item ${isThisActive ? "is-active" : ""}`}
-        onClick={() => onOpenCommunity(comm.id)}
-      >
-        <span
-          className="msg-avatar msg-avatar-text"
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: "12px",
-            background: "#e4ebe5",
-            color: "#0b4a32",
-          }}
-        >
-          <Users size={20} />
-        </span>
-
-        <span className="msg-item-text">
-          <span className="msg-item-top">
-            <strong>{comm.name}</strong>
-            {lastMsg && <time>{formatStamp(lastMsg.createdAt)}</time>}
-          </span>
-          <small>{getCommunityPreview(comm)}</small>
-        </span>
-      </button>
-    );
-  }
-
-  function renderChat({ id, doctor, last, meta }) {
-    const live = presence[doctor.id] || {};
-    const isActive = String(id) === String(activeId) && !communityActive;
-
-    return (
-      <button
-        key={id}
-        type="button"
-        className={`msg-item ${isActive ? "is-active" : ""} ${meta.unread > 0 ? "is-unread" : ""}`}
-        onClick={() => onSelect(id)}
-      >
-        <Avatar doctor={doctor} size={44} online={live.online || live.typing} />
-
-        <span className="msg-item-text">
-          <span className="msg-item-top">
-            <strong>{doctor.name}</strong>
-            {last && <time>{formatStamp(last.createdAt)}</time>}
-          </span>
-          {live.typing ? (
-            <small className="msg-typing-text">typing...</small>
-          ) : (
-            <small>{getPreview(last, doctor)}</small>
-          )}
-        </span>
-
-        <span className="msg-item-flags">
-          {meta.starred && <Star size={14} fill="currentColor" />}
-          {meta.muted && <BellOff size={14} />}
-          {meta.archived && <Archive size={14} />}
-          {meta.blocked && <Ban size={14} />}
-          {meta.unread > 0 && <span className="msg-badge">{meta.unread}</span>}
-        </span>
-      </button>
-    );
-  }
 
   return (
     <aside className="msg-side">
@@ -193,15 +107,98 @@ export default function ConversationList({
       </div>
 
       <div className="msg-list">
-        {visibleCommunities.map(renderCommunity)}
-        {visibleChats.map(renderChat)}
-        {isEmpty && <p className="msg-hint">{emptyText}</p>}
+        {filter === "community" ? (
+          communitiesList.map((comm) => {
+            const lastMsg = comm.messages?.[comm.messages.length - 1];
+            const isThisActive =
+              communityActive &&
+              String(activeCommunityId || "1") === String(comm.id);
+
+            return (
+              <button
+                key={comm.id}
+                type="button"
+                className={`msg-item ${isThisActive ? "is-active" : ""}`}
+                style={{ marginBottom: "6px" }}
+                onClick={() => onOpenCommunity(comm.id)}
+              >
+                <span
+                  className="msg-avatar msg-avatar-text"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "12px",
+                    background: "#e4ebe5",
+                    color: "#0b4a32",
+                  }}
+                >
+                  <Users size={20} />
+                </span>
+
+                <span className="msg-item-text">
+                  <span className="msg-item-top">
+                    <strong>{comm.name}</strong>
+                    {lastMsg && <time>{formatStamp(lastMsg.createdAt)}</time>}
+                  </span>
+                  <small>{getCommunityPreview(comm)}</small>
+                </span>
+              </button>
+            );
+          })
+        ) : (
+          <>
+            {items.map(({ id, doctor, last, meta }) => {
+              const live = presence[doctor.id] || {};
+              const isActive =
+                String(id) === String(activeId) && !communityActive;
+
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`msg-item ${isActive ? "is-active" : ""} ${meta.unread > 0 ? "is-unread" : ""}`}
+                  onClick={() => onSelect(id)}
+                >
+                  <Avatar
+                    doctor={doctor}
+                    size={44}
+                    online={live.online || live.typing}
+                  />
+
+                  <span className="msg-item-text">
+                    <span className="msg-item-top">
+                      <strong>{doctor.name}</strong>
+                      {last && <time>{formatStamp(last.createdAt)}</time>}
+                    </span>
+                    {live.typing ? (
+                      <small className="msg-typing-text">typing...</small>
+                    ) : (
+                      <small>{getPreview(last, doctor)}</small>
+                    )}
+                  </span>
+
+                  <span className="msg-item-flags">
+                    {meta.starred && <Star size={14} fill="currentColor" />}
+                    {meta.muted && <BellOff size={14} />}
+                    {meta.archived && <Archive size={14} />}
+                    {meta.blocked && <Ban size={14} />}
+                    {meta.unread > 0 && (
+                      <span className="msg-badge">{meta.unread}</span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+
+            {items.length === 0 && <p className="msg-hint">{emptyText}</p>}
+          </>
+        )}
       </div>
 
       {showModal && (
         <CreateCommunityModal
           onClose={() => setShowModal(false)}
-          connections={connections}
+          connections={items.map((i) => i.doctor)}
           onCreate={async (data) => {
             if (onCommunityCreate) {
               await onCommunityCreate(data);

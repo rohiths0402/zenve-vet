@@ -1,8 +1,4 @@
-
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  "http://127.0.0.1:8000/api"
-).replace(/\/+$/, "");
+import apiBaseUrl from "../../../api.js";
 
 function getToken() {
   return localStorage.getItem("zenveAccessToken") || "";
@@ -25,7 +21,7 @@ async function apiRequest(path, options = {}) {
   let response;
 
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(`${apiBaseUrl}${path}`, {
       ...options,
       credentials: "include",
       headers,
@@ -86,20 +82,16 @@ function extractList(data) {
 
   throw new Error("Unexpected response format from the API.");
 }
-
-// Fetch all feed posts.
 export async function fetchFeedPosts({ signal } = {}) {
   const data = await apiRequest("/posts/", { signal });
   return extractList(data);
 }
 
-// Fetch clinical case posts.
 export async function fetchClinicalCases({ signal } = {}) {
   const data = await apiRequest("/posts/?type=case", { signal });
   return extractList(data);
 }
 
-// Create a text, image, video, or clinical case post.
 export async function createFeedPost(payload) {
   return apiRequest("/posts/", {
     method: "POST",
@@ -110,7 +102,6 @@ export async function createFeedPost(payload) {
   });
 }
 
-// Upload an image or video before creating the post.
 export async function uploadPostMedia(file, mediaType) {
   if (!(file instanceof File)) {
     throw new Error("Please select a media file.");
@@ -126,7 +117,6 @@ export async function uploadPostMedia(file, mediaType) {
   });
 }
 
-// Create a clinical case with consent validation.
 export async function createClinicalCase({
   caseTitle,
   caseSummary,

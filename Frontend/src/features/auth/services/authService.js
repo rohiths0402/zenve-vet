@@ -1,13 +1,11 @@
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  'http://127.0.0.1:8000/api'
-).replace(/\/+$/, '')
+import apiBaseUrl from "../../../api.js";
+
 
 const AUTH_STORAGE_KEY = 'zenveUser'
 const AUTH_EVENT = 'zenve-auth-changed'
 
 async function apiRequest(path, { method = 'GET', body, token } = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
     method,
     headers: {
       Accept: 'application/json',
@@ -67,13 +65,11 @@ export async function registerAccount(formData) {
     bio: (formData.bio ?? formData.about ?? '').trim(),
   }
 
-  // First create the account and doctor profile.
   const registration = await apiRequest('/accounts/register/', {
     method: 'POST',
     body: payload,
   })
 
-  // Then obtain JWT tokens using the new account.
   try {
     const login = await apiRequest('/accounts/login/', {
       method: 'POST',
@@ -90,7 +86,6 @@ export async function registerAccount(formData) {
       ...login,
     }
   } catch {
-    // Registration may have succeeded even if automatic login failed.
     throw new Error(
       'Your account was created, but automatic login failed. Please sign in.'
     )

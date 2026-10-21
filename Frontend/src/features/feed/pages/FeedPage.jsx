@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -179,9 +180,7 @@ function groupStoriesByDoctor(stories) {
   for (const story of stories) {
     const ownerId = getStoryOwnerId(story);
 
-    if (!groups.has(ownerId)) {
-      groups.set(ownerId, []);
-    }
+    if (!groups.has(ownerId)) groups.set(ownerId, []);
 
     groups.get(ownerId).push(story);
   }
@@ -216,6 +215,24 @@ function getCount(value) {
 }
 
 function getErrorMessage(error) {
+  if (error?.response?.data) {
+    const data = error.response.data;
+
+    if (typeof data === "string") return data;
+
+    return Object.entries(data)
+      .map(([key, value]) => {
+        const message = Array.isArray(value)
+          ? value.join(", ")
+          : typeof value === "string"
+            ? value
+            : JSON.stringify(value);
+
+        return `${key}: ${message}`;
+      })
+      .join(" | ");
+  }
+
   return error?.message || "Something went wrong. Please try again.";
 }
 
@@ -235,7 +252,6 @@ function validateVideoDuration(file) {
 
     const finish = (error, duration) => {
       if (finished) return;
-
       finished = true;
       cleanup();
 
@@ -257,10 +273,7 @@ function validateVideoDuration(file) {
       }
     };
 
-    video.onerror = () => {
-      finish(new Error("Unable to read this video."));
-    };
-
+    video.onerror = () => finish(new Error("Unable to read this video."));
     video.src = url;
   });
 }
@@ -276,19 +289,16 @@ function HeroBanner({ mode }) {
     <div className="zenve-hero">
       <div className="hero-left">
         <p className="eyebrow">THE ZENVE VET COMMUNITY</p>
-
         <h1>
           {isClinical
             ? "Clinical cases. A new perspective."
             : "Every case. A new perspective."}
         </h1>
-
         <p className="sub">
           {isClinical
             ? "Explore veterinary cases and learn from the experiences of your community."
             : "Explore the knowledge and experiences of your community."}
         </p>
-
         <a className="cta" href="#feed-posts">
           {isClinical ? "Explore cases" : "Make your mark"}
           <ArrowUpRight size={16} />
@@ -382,7 +392,6 @@ function StoriesSection({
                   <span>{name.charAt(0).toUpperCase()}</span>
                 )}
               </div>
-
               <span>{name}</span>
             </button>
           );
@@ -471,7 +480,6 @@ function FeedFilters({
         aria-label="Filter by specialty"
       >
         <option value="all-specialties">All specialties</option>
-
         {specialties.map((item) => (
           <option value={item} key={item}>
             {item}
@@ -487,7 +495,6 @@ function FeedFilters({
         <option value="all-posts">
           {mode === "clinical-cases" ? "All clinical cases" : "All posts"}
         </option>
-
         {postTypes.map((item) => (
           <option value={item} key={item}>
             {item.replace(/_/g, " ")}
@@ -524,6 +531,7 @@ function PostCard({
   const title = post.title || post.case_title;
   const description = getPostContent(post);
   const author = getAuthorName(post);
+  const avatar = getAuthorAvatar(post);
 
   const role =
     post.author_specialty ||
@@ -539,9 +547,9 @@ function PostCard({
   return (
     <article className="white-card post-card" data-post-index={index}>
       <div className="post-head">
-        {getAuthorAvatar(post) ? (
+        {avatar ? (
           <img
-            src={getAuthorAvatar(post)}
+            src={avatar}
             alt={`${author}'s profile`}
             onError={(event) => {
               event.currentTarget.style.display = "none";
@@ -560,36 +568,15 @@ function PostCard({
       </div>
 
       {title && <h2 className="ad-title">{title}</h2>}
-
       {description && <p className="post-text">{description}</p>}
 
       {isClinical && (
         <div className="clinical-details">
-          {post.species && (
-            <p>
-              <b>Animal / Species:</b> {post.species}
-            </p>
-          )}
-          {post.symptoms && (
-            <p>
-              <b>Clinical signs:</b> {post.symptoms}
-            </p>
-          )}
-          {post.diagnosis && (
-            <p>
-              <b>Diagnosis:</b> {post.diagnosis}
-            </p>
-          )}
-          {post.treatment && (
-            <p>
-              <b>Treatment:</b> {post.treatment}
-            </p>
-          )}
-          {post.outcome && (
-            <p>
-              <b>Outcome:</b> {post.outcome}
-            </p>
-          )}
+          {post.species && <p><b>Animal / Species:</b> {post.species}</p>}
+          {post.symptoms && <p><b>Clinical signs:</b> {post.symptoms}</p>}
+          {post.diagnosis && <p><b>Diagnosis:</b> {post.diagnosis}</p>}
+          {post.treatment && <p><b>Treatment:</b> {post.treatment}</p>}
+          {post.outcome && <p><b>Outcome:</b> {post.outcome}</p>}
         </div>
       )}
 
@@ -618,18 +605,10 @@ function PostCard({
       )}
 
       <div className="stats">
-        <span>
-          <Eye size={15} /> {post.views_count ?? post.views ?? 0} views
-        </span>
-        <span>
-          <Heart size={15} /> {likesCount} likes
-        </span>
-        <span>
-          <MessageCircle size={15} /> {commentsCount} comments
-        </span>
-        <span>
-          <Share2 size={15} /> {post.shares_count ?? post.shares ?? 0} shares
-        </span>
+        <span><Eye size={15} /> {post.views_count ?? post.views ?? 0} views</span>
+        <span><Heart size={15} /> {likesCount} likes</span>
+        <span><MessageCircle size={15} /> {commentsCount} comments</span>
+        <span><Share2 size={15} /> {post.shares_count ?? post.shares ?? 0} shares</span>
       </div>
 
       <div className="actions">
@@ -705,12 +684,7 @@ function PeopleToKnow({ people, onViewAll }) {
 
           return (
             <div
-              key={
-                person.id ??
-                person.user_id ??
-                person.username ??
-                `person-${index}`
-              }
+              key={person.id ?? person.user_id ?? person.username ?? `person-${index}`}
               className="person"
             >
               {avatar ? (
@@ -760,9 +734,7 @@ function ZenveAdvantage() {
         <Globe size={20} />
         <div>
           <b>Your own professional page</b>
-          <small>
-            A place for your work, your voice, your professional identity.
-          </small>
+          <small>A place for your work, your voice, your professional identity.</small>
         </div>
         <ChevronRight size={17} />
       </div>
@@ -861,18 +833,16 @@ export default function FeedPage({
 
   useEffect(() => {
     return () => {
-      if (videoPreview?.url) {
-        URL.revokeObjectURL(videoPreview.url);
-      }
+      if (videoPreview?.url) URL.revokeObjectURL(videoPreview.url);
     };
   }, [videoPreview]);
 
-  const safePosts =
-    Array.isArray(providedPosts) && providedPosts.length
+  // Prefer the server-backed feed, not a stale parent-provided array.
+  const safePosts = Array.isArray(fetchedPosts)
+    ? fetchedPosts
+    : Array.isArray(providedPosts)
       ? providedPosts
-      : Array.isArray(fetchedPosts)
-        ? fetchedPosts
-        : [];
+      : [];
 
   const safeStories = useMemo(() => {
     const source =
@@ -885,16 +855,13 @@ export default function FeedPage({
 
     return (Array.isArray(source) ? source : []).filter((story) => {
       const expiry = getStoryExpiry(story);
-
       if (expiry !== null && expiry <= now) return false;
 
       const id = getStoryId(story);
 
       if (id !== null) {
         const key = String(id);
-
         if (seen.has(key)) return false;
-
         seen.add(key);
       }
 
@@ -961,7 +928,7 @@ export default function FeedPage({
   /* ------------------------------- Create post ---------------------------- */
 
   const handleCreatePost = useCallback(
-    async (input) => {
+    async (input, selectedImage = null) => {
       setActionError("");
       setActionNotice("");
 
@@ -969,18 +936,26 @@ export default function FeedPage({
         throw new Error("Please sign in before creating a post.");
       }
 
+      // Supports both the string+file and object callback signatures.
       const options =
-        typeof input === "string" ? { content: input } : input || {};
+        typeof input === "string"
+          ? { content: input, mediaFile: selectedImage }
+          : input || {};
 
       const caption = String(
         options.content ?? options.caption ?? ""
       ).trim();
 
-      const mediaFile = options.mediaFile || options.file || null;
+      const mediaFile =
+        options.mediaFile || options.file || selectedImage || null;
 
       const mediaType =
         options.mediaType ||
         (mediaFile?.type?.startsWith("video/") ? "video" : "image");
+
+      if (!caption && !mediaFile) {
+        throw new Error("Write a caption or select an image/video.");
+      }
 
       let mediaUrl = "";
 
@@ -1000,26 +975,28 @@ export default function FeedPage({
             throw new Error("Please select a valid image file.");
           }
 
-          if (mediaFile.size > 10 * 1024 * 1024) {
-            throw new Error("Images must not exceed 10 MB.");
+          if (mediaFile.size > 5 * 1024 * 1024) {
+            throw new Error("Images must not exceed 5 MB.");
           }
         }
 
         const uploadResult = await uploadPostMedia(mediaFile, mediaType);
-        mediaUrl = uploadResult?.media_url || "";
+
+        mediaUrl =
+          uploadResult?.media_url ||
+          uploadResult?.url ||
+          uploadResult?.file_url ||
+          "";
 
         if (!mediaUrl) {
-          throw new Error("The server did not return the uploaded media URL.");
+          throw new Error(
+            "The upload did not return a media URL. Check the upload API response."
+          );
         }
       }
 
-      if (!caption && !mediaUrl) {
-        throw new Error("Write a caption or select an image/video.");
-      }
-
-      await createFeedPost({
-        content_type:
-          mediaType === "video" && mediaFile ? "video" : "post",
+      const createdPost = await createFeedPost({
+        content_type: mediaType === "video" && mediaFile ? "video" : "post",
         caption,
         media_url: mediaUrl,
         thumbnail_url: "",
@@ -1034,6 +1011,8 @@ export default function FeedPage({
             : "Your image was published."
           : "Your post was published."
       );
+
+      return createdPost;
     },
     [refreshFeed]
   );
@@ -1094,18 +1073,13 @@ export default function FeedPage({
     setActionNotice("");
 
     try {
-      if (wasLiked) {
-        await unlikeFeedPost(postId);
-      } else {
-        await likeFeedPost(postId);
-      }
+      if (wasLiked) await unlikeFeedPost(postId);
+      else await likeFeedPost(postId);
 
       setLikedIds((current) => {
         const next = new Set(current);
-
         if (wasLiked) next.delete(postId);
         else next.add(postId);
-
         return next;
       });
 
@@ -1281,9 +1255,7 @@ export default function FeedPage({
             document.getElementById("zenve-story-upload")?.click()
           }
           onOpenStory={(groupIndex) =>
-            setSelectedStoryIndex(
-              storyGroupStartIndices[groupIndex] ?? null
-            )
+            setSelectedStoryIndex(storyGroupStartIndices[groupIndex] ?? null)
           }
         />
 
@@ -1335,7 +1307,6 @@ export default function FeedPage({
             >
               <div className="story-modal-header">
                 <h2 id="story-modal-title">Create story</h2>
-
                 <button
                   type="button"
                   className="story-modal-close"
@@ -1359,10 +1330,7 @@ export default function FeedPage({
               </div>
 
               <form onSubmit={submitStory}>
-                <label htmlFor="zenve-story-caption">
-                  Caption (optional)
-                </label>
-
+                <label htmlFor="zenve-story-caption">Caption (optional)</label>
                 <textarea
                   id="zenve-story-caption"
                   value={storyCaption}
@@ -1403,7 +1371,6 @@ export default function FeedPage({
               >
                 <div className="head">
                   <b>{getAuthorName(orderedStories[selectedStoryIndex])}</b>
-
                   <button
                     type="button"
                     className="action-btn"
@@ -1417,9 +1384,7 @@ export default function FeedPage({
                 {getStoryMediaUrl(orderedStories[selectedStoryIndex]) && (
                   <img
                     className="post-image"
-                    src={getStoryMediaUrl(
-                      orderedStories[selectedStoryIndex]
-                    )}
+                    src={getStoryMediaUrl(orderedStories[selectedStoryIndex])}
                     alt={
                       orderedStories[selectedStoryIndex].caption || "Story"
                     }
@@ -1433,22 +1398,15 @@ export default function FeedPage({
                     type="button"
                     className="action-btn"
                     disabled={selectedStoryIndex === 0}
-                    onClick={() =>
-                      setSelectedStoryIndex((index) => index - 1)
-                    }
+                    onClick={() => setSelectedStoryIndex((index) => index - 1)}
                   >
                     Previous
                   </button>
-
                   <button
                     type="button"
                     className="action-btn"
-                    disabled={
-                      selectedStoryIndex >= orderedStories.length - 1
-                    }
-                    onClick={() =>
-                      setSelectedStoryIndex((index) => index + 1)
-                    }
+                    disabled={selectedStoryIndex >= orderedStories.length - 1}
+                    onClick={() => setSelectedStoryIndex((index) => index + 1)}
                   >
                     Next
                   </button>
@@ -1469,7 +1427,6 @@ export default function FeedPage({
             >
               <div className="story-modal-header">
                 <h2 id="video-modal-title">Publish video</h2>
-
                 <button
                   type="button"
                   className="story-modal-close"
@@ -1492,10 +1449,7 @@ export default function FeedPage({
               <p>{videoPreview.file.name}</p>
 
               <form onSubmit={publishVideo}>
-                <label htmlFor="zenve-video-caption">
-                  Caption (optional)
-                </label>
-
+                <label htmlFor="zenve-video-caption">Caption (optional)</label>
                 <textarea
                   id="zenve-video-caption"
                   value={videoCaption}
@@ -1548,7 +1502,6 @@ export default function FeedPage({
         {feedLoadError && (
           <div className="white-card" role="alert">
             <p>{feedLoadError}</p>
-
             <button
               type="button"
               className="action-btn"
@@ -1569,7 +1522,6 @@ export default function FeedPage({
         {actionError && (
           <div className="create-post-message error" role="alert">
             {actionError}
-
             <button
               type="button"
               onClick={() => setActionError("")}
@@ -1583,7 +1535,6 @@ export default function FeedPage({
         {actionNotice && (
           <p className="create-post-message success" role="status">
             {actionNotice}
-
             <button
               type="button"
               onClick={() => setActionNotice("")}
@@ -1618,9 +1569,7 @@ export default function FeedPage({
                   post={post}
                   index={index}
                   isLiked={postId != null && likedIds.has(postId)}
-                  likePending={
-                    postId != null && pendingLikes.has(postId)
-                  }
+                  likePending={postId != null && pendingLikes.has(postId)}
                   onToggleLike={handleToggleLike}
                   onDiscuss={handleDiscuss}
                   onShare={handleShare}
